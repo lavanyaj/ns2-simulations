@@ -114,14 +114,7 @@ Agent instproc attach-app {s_type} {
 Agent instproc attach-tbf { tbf } {
 	$tbf target [$self target]
 	$self target $tbf
-}
 
-#
-# Attach qjump to an agent
-#
-Agent instproc attach-qjump { qjump } {
-	$qjump target [$self target]
-	$self target $qjump
 }
 
 #
@@ -143,13 +136,6 @@ Agent/CBR/UDP/SA instproc attach-tbf { tbf } {
 	$self target $tbf
 	$self ctrl-target [$tbf target]
 }
-
-Agent/CBR/UDP/SA instproc attach-qjump { qjump } {
-	$qjump target [$self target]
-	$self target $qjump
-	$self ctrl-target [$qjump target]
-}
-
 
 #
 # A lot of agents want to store the maxttl locally.  However,

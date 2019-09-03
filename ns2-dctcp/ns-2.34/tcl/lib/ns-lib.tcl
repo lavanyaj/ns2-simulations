@@ -1566,11 +1566,6 @@ Simulator instproc attach-tbf-agent { node agent tbf } {
 	$agent attach-tbf $tbf
 }
 
-Simulator instproc attach-qjump-agent { node agent qjump } {
-	$node attach $agent
-	$agent attach-qjump $qjump
-}
-
 
 Simulator instproc detach-agent { node agent } {
 

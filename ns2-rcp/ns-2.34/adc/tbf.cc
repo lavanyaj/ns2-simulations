@@ -45,155 +45,117 @@
    c. Max. Queue Length (a finite length would allow this to be used as  policer as packets are dropped after queue gets full)
    */
 
-#include <string>
-#include <sstream>
-
 #include "connector.h" 
 #include "packet.h"
 #include "queue.h"
 #include "tbf.h"
 
-TBF_Value::TBF_Value(TBF *tbf): tbf_(tbf), tokens_(0), tbf_timer_(this), init_(1) {
-	q_ = new PacketQueue();
+TBF::TBF() :tokens_(0),tbf_timer_(this), init_(1)
+{
+	q_=new PacketQueue();
+	bind_bw("rate_",&rate_);
+	bind("bucket_",&bucket_);
+	bind("qlen_",&qlen_);
 }
-
-TBF_Value::~TBF_Value() {
+	
+TBF::~TBF()
+{
 	if (q_->length() != 0) {
 		//Clear all pending timers
 		tbf_timer_.cancel();
 		//Free up the packetqueue
-		for (Packet *p = q_->head(); p != 0; p = p->next_) 
+		for (Packet *p=q_->head();p!=0;p=p->next_) 
 			Packet::free(p);
 	}
 	delete q_;
 }
 
-// TBF::~TBF() {
-// 	// TODO(ionel): Delete TBF_Values from tbfs_.
-// }
 
-void TBF::recv(Packet *p, Handler *) {
-	hdr_ip* iph = hdr_ip::access(p);
-	fid_tbf_itr it = tbfs_.find(iph->flowid());
-	if (it == tbfs_.end()) {
-		// Just send packets because the rate limiting is not active for this flow.
-		target_->recv(p);
-		return;
-	}
-	TBF_Value* tbf = it->second;
-	iph->prio() = tbf->prio_;
-	if (tbf->init_) {
-		//start with a full bucket
-		//		tbf->tokens_ = tbf->bucket_;
-		tbf->tokens_ = tbf->bucket_;
-		tbf->lastupdatetime_ = Scheduler::instance().clock();
-		tbf->init_ = 0;
+void TBF::recv(Packet *p, Handler *)
+{
+	//start with a full bucket
+	if (init_) {
+		tokens_=bucket_;
+		lastupdatetime_ = Scheduler::instance().clock();
+		init_=0;
 	}
 
-	hdr_cmn *ch = hdr_cmn::access(p);
+	
+	hdr_cmn *ch=hdr_cmn::access(p);
+
 	//enque packets appropriately if a non-zero q already exists
-	if (tbf->q_->length() != 0) {
-		if (tbf->q_->length() < tbf->qlen_) {
-			tbf->q_->enque(p);
+	if (q_->length() !=0) {
+		if (q_->length() < qlen_) {
+			q_->enque(p);
 			return;
 		}
+
 		drop(p);
 		return;
 	}
-	double tok;
-	tok = tbf->getupdatedtokens();
 
-	int pktsize = ch->size() << 3;
-	if (tbf->tokens_ >= pktsize) {
+	double tok;
+	tok = getupdatedtokens();
+
+	int pktsize = ch->size()<<3;
+	if (tokens_ >=pktsize) {
 		target_->recv(p);
-		tbf->tokens_ -= pktsize;
-	} else {
-		if (tbf->qlen_ != 0) {
-			tbf->q_->enque(p);
-			tbf->tbf_timer_.resched((pktsize - tbf->tokens_) / tbf->rate_);
-		} else {
+		tokens_-=pktsize;
+	}
+	else {
+		
+		if (qlen_!=0) {
+			q_->enque(p);
+			tbf_timer_.resched((pktsize-tokens_)/rate_);
+		}
+		else {
 			drop(p);
 		}
 	}
 }
 
-double TBF_Value::getupdatedtokens() {
-	double now = Scheduler::instance().clock();
+double TBF::getupdatedtokens(void)
+{
+	double now=Scheduler::instance().clock();
 	
-	tokens_ += (now - lastupdatetime_) * rate_;
-	if (tokens_ > bucket_) {
-		tokens_ = bucket_;
-	}
+	tokens_ += (now-lastupdatetime_)*rate_;
+	if (tokens_ > bucket_)
+		tokens_=bucket_;
 	lastupdatetime_ = Scheduler::instance().clock();
 	return tokens_;
 }
 
-void TBF_Value::timeout(int) {
+void TBF::timeout(int)
+{
 	if (q_->length() == 0) {
 		fprintf (stderr,"ERROR in tbf\n");
 		abort();
 	}
 	
-	Packet *p = q_->deque();
+	Packet *p=q_->deque();
 	double tok;
 	tok = getupdatedtokens();
-	hdr_cmn *ch = hdr_cmn::access(p);
-	int pktsize = ch->size() << 3;
+	hdr_cmn *ch=hdr_cmn::access(p);
+	int pktsize = ch->size()<<3;
 
 	//We simply send the packet here without checking if we have enough tokens
 	//because the timer is supposed to fire at the right time
-	tbf_->target_->recv(p);
-	tokens_ -= pktsize;
+	target_->recv(p);
+	tokens_-=pktsize;
 
 	if (q_->length() !=0 ) {
-		p = q_->head();
-		hdr_cmn *ch = hdr_cmn::access(p);
-		pktsize = ch->size() << 3;
-		tbf_timer_.resched((pktsize - tokens_) / rate_);
+		p=q_->head();
+		hdr_cmn *ch=hdr_cmn::access(p);
+		pktsize = ch->size()<<3;
+		tbf_timer_.resched((pktsize-tokens_)/rate_);
 	}
-}
-
-int TBF::command(int argc, const char* const* argv) {
-	if (argc == 7) {
-		if (strcmp("activate-fid", argv[1]) == 0) {
-			int fid = atoi(argv[2]);
-			long long rate;
-			long long bucket;
-			string text = argv[3];
-			stringstream buffer_rate(text);
-			buffer_rate >> rate;
-			text = argv[4];
-			stringstream buffer_bucket(text);
-			buffer_bucket >> bucket;
-			int qlen = atoi(argv[5]);
-			int prio = atoi(argv[6]);
-			activate_fid(fid, rate, bucket, qlen, prio);
-			return TCL_OK;
-		}
-	}
-	return Connector::command(argc, argv);
-}
-
-void TBF::activate_fid(int fid, long long rate, long long bucket, int qlen, int prio) {
-	fid_tbf_itr it = tbfs_.find(fid);
-	if (it != tbfs_.end()) {
-		TBF_Value* tbf_val = it->second;
-		tbfs_.erase(it);
-		delete tbf_val;
-	}
-	TBF_Value* tbf = new TBF_Value(this);
-	tbf->flow_id_ = fid;
-	tbf->rate_ = rate;
-	tbf->bucket_ = bucket;
-	tbf->qlen_ = qlen;
-	tbf->prio_ = prio;
-	tbfs_.insert(fid_tbf_val(fid, tbf));
 }
 
 void TBF_Timer::expire(Event* /*e*/)
 {
-	tbf_value_->timeout(0);
+	tbf_->timeout(0);
 }
+
 
 static class TBFClass : public TclClass {
 public:
