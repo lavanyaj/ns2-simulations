@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include "queue-monitor.h"
 #include "trace.h"
 #include "packet.h"
-#include "rcp/rcp-host.h"
 #include <math.h>
 
 int QueueMonitor::command(int argc, const char*const* argv)
@@ -254,15 +253,7 @@ void QueueMonitor::in(Packet* p)
 		sperc_ctrl_barrivals_ += pktsz;
 	} else if (hdr->ptype() == PT_SPERC) {
 		sperc_data_barrivals_ += pktsz;
-	} 
-
-	if (hdr->ptype() == PT_RCP) {
-		if (hdr_rcp::access(p)->RCP_pkt_type() == RCP_REF 
-		    || hdr_rcp::access(p)->RCP_pkt_type() == RCP_REFACK) {
-			sperc_ctrl_barrivals_ += pktsz;
-		} 
 	}
-
 
 	size_ += pktsz;
 	pkts_++;
@@ -296,13 +287,6 @@ void QueueMonitor::out(Packet* p)
 		sperc_ctrl_bdepartures_ += pktsz;
 	} else if (hdr->ptype() == PT_SPERC) {
 		sperc_data_bdepartures_ += pktsz;
-	}
-
-	if (hdr->ptype() == PT_RCP) {
-		if (hdr_rcp::access(p)->RCP_pkt_type() == RCP_REF 
-		    || hdr_rcp::access(p)->RCP_pkt_type() == RCP_REFACK) {
-			sperc_ctrl_bdepartures_ += pktsz;
-		} 
 	}
 
 	if (bytesInt_)
@@ -343,13 +327,6 @@ void QueueMonitor::drop(Packet* p)
 		sperc_data_bdrops_ += pktsz;
 	}
 
-	if (hdr->ptype() == PT_RCP) {
-		if (hdr_rcp::access(p)->RCP_pkt_type() == RCP_REF 
-		    || hdr_rcp::access(p)->RCP_pkt_type() == RCP_REFACK) {
-			sperc_ctrl_bdrops_ += pktsz;
-		} 
-	}
-	
 	if (bytesInt_)
 		bytesInt_->newPoint(now, double(size_));
 	if (pktsInt_)

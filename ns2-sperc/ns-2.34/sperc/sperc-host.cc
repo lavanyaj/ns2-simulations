@@ -951,7 +951,6 @@ void SPERCAgent::log_ack(Packet *p) {
       first_log_recv_ack_ = false;
     } 
     char buf[8192];
-    // "%s : sperc_data %g us %g Mb/s, rcp_data %g us %g Mb/s, rcp_ctrl %g us = %g Mb/s\n"
     hdr_sperc* rh = hdr_sperc::access(p);
     double rtt =  (Scheduler::instance().clock() - rh->ts())*1e6;
     bool is_exit = (hdr_cmn::access(p)->ptype() == PT_SPERC_CTRL && hdr_sperc_ctrl::access(p)->is_exit());    
@@ -991,9 +990,6 @@ void SPERCAgent::log_rates_periodic() {
   if (rem < 10)  now_us -= rem;
   else now_us += (20 - rem);
 
-  //  char buf[8192];
-  // "%s : sperc_data %g us %g Mb/s, rcp_data %g us %g Mb/s, rcp_ctrl %g us = %g Mb/s\n"
-  
   if(common_channel_ != NULL){
     if (first_log_rate_periodic_) {
       char header[8192];
@@ -1031,7 +1027,6 @@ void SPERCAgent::log_rates() {
       first_log_rate_change_ = false;
     } 
     char buf[8192];
-    // "%s : sperc_data %g us %g Mb/s, rcp_data %g us %g Mb/s, rcp_ctrl %g us = %g Mb/s\n"
     double actual_rate = -1;
     if (interval() > 0) actual_rate = ((size_*8)/(interval()))*1e-6;
     //	    (((size_*8)/(interval_))*1e-6) ,

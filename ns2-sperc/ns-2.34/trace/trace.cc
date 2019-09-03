@@ -48,8 +48,6 @@
 #include "trace.h"
 #include "rap/rap.h"
 #include "sperc/sperc-hdrs.h"
-// lavanya: for RCP
-#include "rcp/rcp-host.h"
 
 //const double Trace::PRECISION = 1.0e+6; 
 
@@ -197,8 +195,6 @@ Trace::get_seqno(Packet* p)
 	hdr_tfrc_ack *tfrch_ack = hdr_tfrc_ack::access(p);
 	hdr_sperc *sh = hdr_sperc::access(p);
 	hdr_sperc_ctrl *sch = hdr_sperc_ctrl::access(p);
-	//lavanyaj: for RCP
-	hdr_rcp *rcph = hdr_rcp::access(p);
 
 	packet_t t = th->ptype();
 	int seqno;
@@ -220,9 +216,6 @@ Trace::get_seqno(Packet* p)
 		seqno = sh->seqno();
 	else if (t == PT_SPERC_CTRL)
 		seqno = sch->seqno();
-	// lavanyaj: for RCP
-	else if (t == PT_RCP)
-		seqno = 0; //rcph->seqno();
 	else
 		seqno = -1;
  	return seqno;
@@ -238,7 +231,6 @@ void Trace::format(int tt, int s, int d, Packet* p)
 	hdr_tcp *tcph = hdr_tcp::access(p);
 	hdr_sctp *sctph = hdr_sctp::access(p);
 	hdr_srm *sh = hdr_srm::access(p); 
-	hdr_rcp *rcpch = hdr_rcp::access(p);
 
 	const char* sname = "null";
 
