@@ -47,7 +47,6 @@
 #include "address.h"
 #include "trace.h"
 #include "rap/rap.h"
-#include "sperc/sperc-hdrs.h"
 // lavanya: for RCP
 #include "rcp/rcp-host.h"
 
@@ -195,8 +194,6 @@ Trace::get_seqno(Packet* p)
         hdr_rap *raph = hdr_rap::access(p);
 	hdr_tfrc *tfrch = hdr_tfrc::access(p);
 	hdr_tfrc_ack *tfrch_ack = hdr_tfrc_ack::access(p);
-	hdr_sperc *sh = hdr_sperc::access(p);
-	hdr_sperc_ctrl *sch = hdr_sperc_ctrl::access(p);
 	//lavanyaj: for RCP
 	hdr_rcp *rcph = hdr_rcp::access(p);
 
@@ -216,10 +213,6 @@ Trace::get_seqno(Packet* p)
 		seqno = tfrch->seqno;
 	else if (t == PT_TFRC_ACK)
                 seqno = tfrch_ack->seqno;
-	else if (t == PT_SPERC)
-		seqno = sh->seqno();
-	else if (t == PT_SPERC_CTRL)
-		seqno = sch->seqno();
 	// lavanyaj: for RCP
 	else if (t == PT_RCP)
 		seqno = 0; //rcph->seqno();

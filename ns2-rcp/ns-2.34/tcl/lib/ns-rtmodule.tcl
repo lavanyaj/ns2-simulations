@@ -141,8 +141,9 @@ RtModule/Base instproc register { node } {
         # lavanya
 	$self instvar use_sperc_classifier_
 	if { $use_sperc_classifier_ == 1 } {
-		set classifier_ [new Classifier/Hash/Dest/SPERC 32]
-		$classifier_ set nodeid_ [$node id]
+		# in ns2-rcp, we never use_sperc_classifier_
+		# set classifier_ [new Classifier/Hash/Dest/SPERC 32]
+		# $classifier_ set nodeid_ [$node id]
 	} else {
 		set classifier_ [new Classifier/Hash/Dest 32]
 	}

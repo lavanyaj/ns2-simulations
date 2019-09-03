@@ -38,7 +38,6 @@ static const char rcsid[] =
 #endif
 
 #include "drop-tail.h"
-#include "sperc/sperc-hdrs.h"
 
 static class DropTailClass : public TclClass {
  public:

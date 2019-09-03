@@ -534,11 +534,9 @@ SimpleLink instproc sample-queue-size { } {
 
 	#return "$meanBytesQ $meanPktsQ"
 
-    $qMonitor_ instvar pdrops_ pdepartures_ parrivals_ bdrops_ bdepartures_ barrivals_ sperc_ctrl_barrivals_ sperc_data_barrivals_ sperc_ctrl_bdepartures_ sperc_data_bdepartures_
-# sperc_ctrl_bdrops_ sperc_data_bdrops_
-
+    $qMonitor_ instvar pdrops_ pdepartures_ parrivals_ bdrops_ bdepartures_ barrivals_ sperc_ctrl_bdrops_ sperc_ctrl_bdepartures_ sperc_ctrl_barrivals_ 
     # lavanya: mean queue size alculated here in tcl, rest in c++ ns-2.34/tools/queue-monitor.h
-    return "$meanBytesQ $meanPktsQ $parrivals_ $pdepartures_ $pdrops_ $barrivals_ $bdepartures_ $bdrops_ $sperc_ctrl_barrivals_ $sperc_data_barrivals_ $sperc_ctrl_bdepartures_ $sperc_data_bdepartures_"
+    return "$meanBytesQ $meanPktsQ $parrivals_ $pdepartures_ $pdrops_ $barrivals_ $bdepartures_ $bdrops_ $sperc_ctrl_bdrops_ $sperc_ctrl_bdepartures_ $sperc_ctrl_barrivals_ "
 
 }	
 

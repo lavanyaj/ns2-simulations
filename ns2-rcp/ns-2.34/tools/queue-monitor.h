@@ -52,7 +52,6 @@ public:
 		pdrops_(0), pmarks_(0), bdrops_(0), 
 			 qs_pkts_(0), qs_bytes_(0), qs_drops_(0),
 			 sperc_ctrl_barrivals_(0), sperc_ctrl_bdepartures_(0), sperc_ctrl_bdrops_(0),
-			 sperc_data_barrivals_(0), sperc_data_bdepartures_(0), sperc_data_bdrops_(0),
 		keepRTTstats_(0), maxRTT_(1), numRTTs_(0), binsPerSec_(10),
 		keepSeqnoStats_(0), maxSeqno_(1000), 
 		numSeqnos_(0), SeqnoBinSize_(1),
@@ -75,9 +74,6 @@ public:
 		bind("sperc_ctrl_barrivals_", &sperc_ctrl_barrivals_);
 		bind("sperc_ctrl_bdepartures_", &sperc_ctrl_bdepartures_);
 		bind("sperc_ctrl_bdrops_", &sperc_ctrl_bdrops_);
-		bind("sperc_data_barrivals_", &sperc_data_barrivals_);
-		bind("sperc_data_bdepartures_", &sperc_data_bdepartures_);
-		bind("sperc_data_bdrops_", &sperc_data_bdrops_);
 
 		bind("qs_pkts_", &qs_pkts_);
 		bind("qs_bytes_", &qs_bytes_);
@@ -132,10 +128,6 @@ public:
 	int sperc_ctrl_bdepartures() const { return (sperc_ctrl_bdepartures_); }
 	int sperc_ctrl_bdrops() const { return (sperc_ctrl_bdrops_); }
 
-	int sperc_data_barrivals() const { return (sperc_data_barrivals_); }
-	int sperc_data_bdepartures() const { return (sperc_data_bdepartures_); }
-	int sperc_data_bdrops() const { return (sperc_data_bdrops_); }
-
 	double first_pkt() const { return (first_pkt_); }
 
 	void printRTTs();
@@ -172,13 +164,9 @@ protected:
 	int qs_bytes_;			/* Number of Quick-Start bytes */
 	int qs_drops_;			/* Number of dropped QS packets */
 
-	int sperc_ctrl_barrivals_;      /* Number of bytes of SPERC control traffic that arrived*/
-	int sperc_ctrl_bdepartures_;    /* Number of bytes of SPERC control traffic that departed*/
-	int sperc_ctrl_bdrops_;         /* Number of bytes of SPERC control traffic that were dropped*/
-
-	int sperc_data_barrivals_;      /* Number of bytes of SPERC data traffic that arrived*/
-	int sperc_data_bdepartures_;    /* Number of bytes of SPERC data traffic that departed*/
-	int sperc_data_bdrops_;         /* Number of bytes of SPERC data traffic that were dropped*/
+	int sperc_ctrl_barrivals_;      /* Number of bytes of SPERC / RCP control traffic that arrived*/
+	int sperc_ctrl_bdepartures_;    /* Number of bytes of SPERC / RCP control traffic that departed*/
+	int sperc_ctrl_bdrops_;         /* Number of bytes of SPERC / RCP control traffic that were dropped*/
 
 	double first_pkt_;		/* Time of first packet arrival */
 	double last_pkt_;		/* Time of last packet arrival */

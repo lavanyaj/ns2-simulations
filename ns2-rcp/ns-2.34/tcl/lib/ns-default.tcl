@@ -329,13 +329,10 @@ QueueMonitor set pdrops_ 0
 QueueMonitor set pmarks_ 0
 QueueMonitor set bdrops_ 0
 
+# for monitoring RCP / s-PERC control packets
 QueueMonitor set sperc_ctrl_barrivals_ 0
 QueueMonitor set sperc_ctrl_bdepartures_ 0
-QueueMonitor set sperc_ctrl_bdrops_ 0
-
-QueueMonitor set sperc_data_barrivals_ 0
-QueueMonitor set sperc_data_bdepartures_ 0
-QueueMonitor set sperc_data_bdrops_ 0
+QueueMonitor set sperc_ctrl_bdrops_ 0        
 
 QueueMonitor set qs_pkts_ 0
 QueueMonitor set qs_bytes_ 0

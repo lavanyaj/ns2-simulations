@@ -103,7 +103,6 @@ public:
 			return cl;
 
 		} else {
-			fprintf(stderr, "warning! sperc should be run with perflow_ and symmetric_\n");
 			int cl;
 			int fail = ns_;			
 			do {

@@ -250,12 +250,6 @@ void QueueMonitor::in(Packet* p)
 	barrivals_ += pktsz;
 	parrivals_++;
 
-	if (hdr->ptype() == PT_SPERC_CTRL) {
-		sperc_ctrl_barrivals_ += pktsz;
-	} else if (hdr->ptype() == PT_SPERC) {
-		sperc_data_barrivals_ += pktsz;
-	} 
-
 	if (hdr->ptype() == PT_RCP) {
 		if (hdr_rcp::access(p)->RCP_pkt_type() == RCP_REF 
 		    || hdr_rcp::access(p)->RCP_pkt_type() == RCP_REFACK) {
@@ -291,12 +285,6 @@ void QueueMonitor::out(Packet* p)
 	pkts_--;
 	bdepartures_ += pktsz;
 	pdepartures_++;
-
-	if (hdr->ptype() == PT_SPERC_CTRL) {
-		sperc_ctrl_bdepartures_ += pktsz;
-	} else if (hdr->ptype() == PT_SPERC) {
-		sperc_data_bdepartures_ += pktsz;
-	}
 
 	if (hdr->ptype() == PT_RCP) {
 		if (hdr_rcp::access(p)->RCP_pkt_type() == RCP_REF 
@@ -337,11 +325,6 @@ void QueueMonitor::drop(Packet* p)
 	if (pf->qs())
 		qs_drops_++;
 
-	if (hdr->ptype() == PT_SPERC_CTRL) {
-		sperc_ctrl_bdrops_ += pktsz;
-	} else if (hdr->ptype() == PT_SPERC) {
-		sperc_data_bdrops_ += pktsz;
-	}
 
 	if (hdr->ptype() == PT_RCP) {
 		if (hdr_rcp::access(p)->RCP_pkt_type() == RCP_REF 

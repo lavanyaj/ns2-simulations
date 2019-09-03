@@ -14,7 +14,6 @@
 
 #include "red.h"
 #include "drop-tail.h"
-#include "sperc_priqueue.h"
 #include "tcp.h"
 #include "random.h"
 #include "ip.h"

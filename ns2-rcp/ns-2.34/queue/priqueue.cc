@@ -47,7 +47,6 @@
 #include <cmu-trace.h>
 
 #include "priqueue.h"
-#include "sperc/sperc-hdrs.h" // to identify high prio sperc ctrl pkts
 
 typedef int (*PacketFilter)(Packet *, void *);
 
@@ -79,6 +78,59 @@ PriQueue::command(int argc, const char*const* argv)
   return DropTail::command(argc, argv);
 }
 
+void
+PriQueue::recv(Packet *p, Handler *h)
+{
+        struct hdr_cmn *ch = HDR_CMN(p);
+
+        if(Prefer_Routing_Protocols) {
+
+                switch(ch->ptype()) {
+		case PT_DSR:
+		case PT_MESSAGE:
+                case PT_TORA:
+                case PT_AODV:
+                // AOMDV patch
+		case PT_AOMDV:
+			recvHighPriority(p, h);
+                        break;
+
+                default:
+                        Queue::recv(p, h);
+                }
+        }
+        else {
+                Queue::recv(p, h);
+        }
+}
+
+
+void 
+PriQueue::recvHighPriority(Packet *p, Handler *)
+  // insert packet at front of queue
+{
+	q_->enqueHead(p);
+	if (q_->length() >= qlim_)
+    {
+      Packet *to_drop = q_->lookup(q_->length()-1);
+      q_->remove(to_drop);
+      drop(to_drop);
+    }
+  
+  if (!blocked_) {
+    /*
+     * We're not blocked.  Get a packet and send it on.
+     * We perform an extra check because the queue
+     * might drop the packet even if it was
+     * previously empty!  (e.g., RED can do this.)
+     */
+    p = deque();
+    if (p != 0) {
+      blocked_ = 1;
+      target_->recv(p, &qh_);
+    }
+  } 
+}
  
 void 
 PriQueue::filter(PacketFilter filter, void * data)
@@ -138,62 +190,6 @@ PriQueue::Terminate()
 	}
 }
 
-// following functions added by lavanya for SPERC priority queueing for control packets
-
-bool PriQueue::isHighPriority(Packet *p) {
-	struct hdr_cmn *ch = HDR_CMN(p);
-	struct hdr_sperc *sh = HDR_SPERC(p);
-	
-	return (ch->ptype() == PT_SPERC_CTRL);
-
-}
 
 
 
-void PriQueue::enque(Packet *p) {
-	hdr_cmn *cmnh = hdr_cmn::access(p);
-	int size = hdr_cmn::access(p)->size();
-	int type = hdr_cmn::access(p)->ptype();
-	hdr_sperc * hdr = hdr_sperc::access(p);
-	int sperc_type = hdr->SPERC_pkt_type();
-	double now = Scheduler::instance().clock();
-#ifdef LAVANYA_DEBUG
-	fprintf(stdout,"%lf entering PriQueue::enque()..%s size %d, ptype %d, sperc_type %s uid_ %d\n",
-		now,this->name(), size, type, 
-		SPERC_PKT_T_STR[sperc_type], cmnh->uid_);
-        if(Prefer_Routing_Protocols and isHighPriority(p)) {
-		fprintf(stdout,"%lf in PriQueue::enque()..%s pkt is high priority.\n", 
-			now, this->name());
-	} else {
-		fprintf(stdout,"%lf in PriQueue::enque()..%s pkt is low priority.\n",
-			now, this->name());
-	}
-#endif // LAVANYA_DEBUG
-        if(Prefer_Routing_Protocols and isHighPriority(p)) enqueHead(p);
-	else DropTail::enque(p);	
-}
-
-// lavanya: this is like DropTail::enque()
-void PriQueue::enqueHead(Packet *p) {
-	hdr_cmn *cmnh = hdr_cmn::access(p);
-	int size = hdr_cmn::access(p)->size();
-	int type = hdr_cmn::access(p)->ptype();
-	hdr_sperc * hdr = hdr_sperc::access(p);
-	int sperc_type = hdr->SPERC_pkt_type();
-#ifdef LAVANYA_DEBUG
-	fprintf(stdout,
-		"%lf entering PriQueue::enqueHead()..%s size %d, ptype %d, sperc_type %s uid_ %d\n",
-		Scheduler::instance().clock(),this->name(), size, type, 
-		SPERC_PKT_T_STR[sperc_type], cmnh->uid_);
-#endif // LAVANYA_DEBUG
-	q_->enqueHead(p);
-	if (q_->length() >= qlim_) {
-		// drop from tail
-		Packet *to_drop = q_->lookup(q_->length()-1);
-		if (to_drop and isHighPriority(p)) {
-			fprintf(stderr, "PriQueue: warning! dropping control packet after enqueHead.\n");
-		}
-		q_->remove(to_drop);      
-		drop(to_drop); // frees packet
-	}
-}
