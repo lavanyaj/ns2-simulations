@@ -55,6 +55,37 @@ set MAXSEQ 1073741824
 set tcl_precision 17
 
 Connector set debug_ false
+# lavanya added fromnodeid_ and tonodeid_ to use when sorting next hop by tonodeid_
+Connector set fromnodeid_ -1
+Connector set tonodeid_ -1
+# warning that class variable is not defined, maybe these inherit from Connector in C++?
+Agent/Null set fromnodeid_ -1
+Agent/Null set tonodeid_ -1
+Queue/DropTail/RCP set fromnodeid_ -1
+Queue/DropTail/RCP set tonodeid_ -1
+DelayLink set fromnodeid_ -1
+DelayLink set tonodeid_ -1
+TTLChecker set fromnodeid_ -1
+TTLChecker set tonodeid_ -1
+Trace/Enque set fromnodeid_ -1
+Trace/Enque set tonodeid_ -1
+Trace/Deque set fromnodeid_ -1
+Trace/Deque set tonodeid_ -1
+Trace/Recv set fromnodeid_ -1
+Trace/Recv set tonodeid_ -1
+Trace/Drop set fromnodeid_ -1
+Trace/Drop set tonodeid_ -1
+Agent/rtProto/DV set tonodeid_ -1
+Agent/rtProto/DV set fromnodeid_ -1
+Agent/rtProto/Direct set tonodeid_ -1
+Agent/rtProto/Direct set fromnodeid_ -1
+Agent/RCP set tonodeid_ -1
+Agent/RCP set fromnodeid_ -1
+# Agent/SPERC set tonodeid_ -1
+# Agent/SPERC set fromnodeid_ -1
+SnoopQueue/Drop set fromnodeid_ -1
+SnoopQueue/Drop set tonodeid_ -1
+
 TTLChecker set debug_ false
 
 Trace set src_ -1
@@ -102,7 +133,43 @@ FQLink set queueManagement_ DropTail
 Queue/DropTail set drop_front_ false
 Queue/DropTail set summarystats_ false
 Queue/DropTail set queue_in_bytes_ false
-Queue/DropTail set mean_pktsize_ 500
+Queue/DropTail set mean_pktsize_ 1500
+
+# lavanya: drop tail + custom simple priority queue
+# Queue/SPERCPriQueue set queue_in_bytes_ false
+# Queue/SPERCPriQueue set qlimBytes_ 0
+# Queue/SPERCPriQueue set tbf_limBytes_ 0
+# Queue/SPERCPriQueue set qhi_limBytes_ 0
+# # by default we will drop high priority packets if queue would overflow
+# Queue/SPERCPriQueue set never_drop_hi_ false
+# Queue/SPERCPriQueue set sperc_tbf_rate_ 1Gb;
+# Queue/SPERCPriQueue set sperc_tbf_qlen_ 1000000; # 1 million pkts
+# Queue/SPERCPriQueue set sperc_tbf_bucket_ 12000; # 1500 bytes burst
+
+# lavanya: from rcp
+Queue/DropTail/RCP set min_rate_ 1 ; # bytes / s
+Queue/DropTail/RCP set simple_rtt_update_ 0;
+Queue/DropTail/RCP set alpha_ 0.4
+Queue/DropTail/RCP set beta_ 0.4
+Queue/DropTail/RCP set gamma_ 1
+# lavanya: in the original long lived flows example, cap was 2.4 Gb/s, RTT was 0.1s,
+#  packet size was 1000 bytes and min_pprtt_ was 0.01 i.e., (0.01 * 1000) 1000 byte packets/ 0.1s
+#  or 800 kilobits/s or 0.03% of link capacity
+Queue/DropTail/RCP set min_pprtt_ 0.01
+# lavanya: this is the initial value of flow_rate_ set at set-link-capacity and valid
+# till first update at switch, what if no packet was seen before first update?
+Queue/DropTail/RCP set init_rate_fact_ 0.05
+Queue/DropTail/RCP set print_status_ 1
+Queue/DropTail/RCP set rate_fact_mode_ 0
+# lavanya: fixed_rate_fact_ and propag_rtt_ are not used when rate_fact_mode = 0
+Queue/DropTail/RCP set fixed_rate_fact_ 0.05 ;# effective only if rate_fact_mode = 1
+Queue/DropTail/RCP set propag_rtt_ 1.0  ;# effective only if rate_fact_mode = 3
+# lavanya: in the original long lived flows example, RTT was 0.1s and upd_timeslot_ 0.01
+Queue/DropTail/RCP set upd_timeslot_ 0.01  ;# rate update interval (sec).
+# lavanya: added initial RTT estimate here instead of in rcp.cc, in original long lived
+# flows examples, RTT was 0.1s and initial estimate was 0.2s
+Queue/DropTail/RCP set init_rtt_ 0.2  ;
+Queue/DropTail/RCP set packet_size_ 0 ;
 
 Queue/DropTail/PriQueue set Prefer_Routing_Protocols    1
 
@@ -118,6 +185,17 @@ Queue/dsRED set ecn_ 0
 # XXX Temporary fix XXX
 # support only xcp flows; set to 1 when supporting both tcp and xcp flows; temporary fix for allocating link BW between xcp and tcp queues until dynamic queue weights come into effect. This fix should then go away
 Queue/XCP set tcp_xcp_on_ 0  ;
+
+# lavanya: s-PERC (starting with RCPQ, will modify as needed)
+# Queue/Priority/SPERC set fromnodeid_ -1
+# Queue/Priority/SPERC set tonodeid_ -1
+# Queue/Priority/SPERC set control_traffic_pc_ 0
+# # lavanya: from rcp
+# Queue/Priority/SPERC set alpha_ 0.5
+# Queue/Priority/SPERC set beta_ 0.5
+# Queue/Priority/SPERC set Tq_ 0.000012;
+# Queue/Priority/SPERC set queue_threshold_ 15000;
+# Queue/Priority/SPERC set stretch_factor_ 0.1;
 
 Queue/RED set bytes_ true ;		# default changed on 10/11/2004.
 Queue/RED set queue_in_bytes_ true ;	# default changed on 10/11/2004.
@@ -257,6 +335,7 @@ Queue/DRR set buckets_ 10
 Queue/DRR set blimit_ 25000
 Queue/DRR set quantum_ 250
 Queue/DRR set mask_ 0
+Queue/DRR set control_traffic_pc_ 0
 
 # Integrated SRR (1/20/2002, xuanc)
 Queue/SRR set maxqueuenumber_ 16
@@ -279,6 +358,10 @@ SnoopQueue/Out set debug_ false
 SnoopQueue/Drop set debug_ false
 SnoopQueue/EDrop set debug_ false
 SnoopQueue/Tagger set debug_ false
+SnoopQueue/In set fromnodeid_ -1
+SnoopQueue/In set tonodeid_ -1
+SnoopQueue/Out set fromnodeid_ -1
+SnoopQueue/Out set tonodeid_ -1
 
 PacketQueue/Semantic set acksfirst_ false
 PacketQueue/Semantic set filteracks_ false
@@ -297,6 +380,14 @@ QueueMonitor set bdepartures_ 0
 QueueMonitor set pdrops_ 0
 QueueMonitor set pmarks_ 0
 QueueMonitor set bdrops_ 0
+
+QueueMonitor set sperc_ctrl_barrivals_ 0
+QueueMonitor set sperc_ctrl_bdepartures_ 0
+QueueMonitor set sperc_ctrl_bdrops_ 0
+
+QueueMonitor set sperc_data_barrivals_ 0
+QueueMonitor set sperc_data_bdepartures_ 0
+QueueMonitor set sperc_data_bdrops_ 0
 
 QueueMonitor set qs_pkts_ 0
 QueueMonitor set qs_bytes_ 0
@@ -380,6 +471,14 @@ Classifier set debug_ false
 Classifier/Hash set default_ -1; # none
 Classifier/Replicator set ignore_ 0
 
+# lavanya: used when finding ingress/ egress
+#  link at node entry_ classifier
+# Classifier/Hash/Dest/SPERC set nodeid_ -1;
+# # Parameters for SPERC processing at switches
+# Classifier/Hash/Dest/SPERC set controlTrafficPc_ 10;
+# Classifier/Hash/Dest/SPERC set headroomPc_ 10;
+# Classifier/Hash/Dest/SPERC set maxsatTimeout_ 100e-6;
+
 # MPLS Classifier
 Classifier/Addr/MPLS set ttl_   32
 Classifier/Addr/MPLS set trace_mpls_ 0
@@ -388,6 +487,11 @@ Classifier/Addr/MPLS set enable_reroute_    0
 Classifier/Addr/MPLS set reroute_option_ 0
 Classifier/Addr/MPLS set control_driven_ 0
 Classifier/Addr/MPLS set data_driven_ 0
+
+# Mohammad
+Classifier/MultiPath set nodeid_ -1
+Classifier/MultiPath set perflow_ 1
+Classifier/MultiPath set symmetric_ 1 
 
 #
 # FEC models
@@ -895,7 +999,71 @@ Agent/SCTP/CMT set countPFToActiveNewData_ 0 ;# count of PF->Active changes
                                               # for new data transfer
 Agent/SCTP/CMT set countPFToActiveRtxms_ 0;   # count of PF->Active changes
                                               # for retransmissions
+Agent/RCP set rate_probe_interval_ 0
+Agent/RCP set rto_abs_ 0
+Agent/RCP set rto_fact_ 2
+# lavanya: from rcp
+Agent/RCP set nodeid_ -1
+Agent/RCP set numpkts_ 1
+Agent/RCP set seqno_ 0
+Agent/RCP set packetSize_ 1000
+Agent/RCP set delayrtt_ 0
+Agent/RCP set fid_ 0
+Agent/RCP set init_refintv_fix_ 0
+Agent/RCP set syn_delay_ 0.5
+Agent/RCP set ref_fact_ 4 ; # Number of REFS PER RTT
+Agent/RCP set  rcp_hdr_bytes_ 40 ; # same as TCP for fair comparison
+Agent/RCP set quit_prob_ 1.0 ; #probability of quitting if assigned rate is zero
+Agent/RCP set ref_intval 1.0 ;
+# done is called, when ACK is received and num_dataPkts_acked_by_receiver_ == numpkts_
+Agent/RCP instproc done {} { }
+Agent/RCP instproc fin-received {} { }
+# called when SYN is sent
+Agent/RCP instproc syn-sent {} { }
+# called when first data packet is sent
+Agent/RCP instproc begin-datasend {} { }
+# called when FIN is sent, doesn't mean all data packets have been acked, might have retx follow
+Agent/RCP instproc finish-datasend {} { }
+# Agent/RCP instproc reset-tcl {} { }
 
+# lavanya
+# Agent/SPERC set nodeid_ -1
+# Agent/SPERC set numpkts_ 1
+# Agent/SPERC set seqno_ 0
+# Agent/SPERC set packetSize_ 1000
+# Agent/SPERC set fid_ 0
+# Agent/SPERC set line_rate_limiting_thresh_ 0 ; 
+# Agent/SPERC set use_min_alloc_as_rate_ 1;
+# Agent/SPERC set min_pkts_for_priority_ 0;
+# Agent/SPERC set weight_for_small_flows_ 1;
+# Agent/SPERC set use_stretch_ 0;
+
+# {SPERC.., RCP.., LINERATE}
+# Agent/SPERC set line_rate_ 0Gb ;
+# Agent/SPERC set rate_change_interval_ 0
+# Agent/SPERC set ref_start_when_period_rtts_ 1000
+# Agent/SPERC set ref_rate_period_rtts_ 4
+# Agent/SPERC set syn_retx_period_seconds_ 0.100 
+# # 0.000050 for DC, 100ms for WAN
+# Agent/SPERC set initial_min_rtt_seconds_ 0.000030
+# Agent/SPERC set init_sperc_data_interval_ -1 ; 
+# Agent/SPERC set match_demand_to_flow_size_ 0 ;
+# to start sending before any handshake
+
+# done is called when SYN_CTRL_REV with is_exit is received (for SPERC limited packets)
+# and as soon as num_dataPkts_acked_by_receiver_ == numpkts_ (for RCP limited packets)
+# Agent/SPERC instproc done {} { }
+# Agent/SPERC instproc fin-received {} { }
+# Agent/SPERC instproc all-datapkts-received {} { }
+# Agent/SPERC instproc syn-sent {} { }
+# Agent/SPERC instproc ctrl-syn-sent {} { }
+# Agent/SPERC instproc begin-datasend {} { }
+# Agent/SPERC instproc finish-datasend {} { }
+# stop-data is calle with arg num_enter_retransmit_mode_d, when ACK is received and num_dataPkts_acked_by_receiver_ == numpkts_
+#Agent/SPERC instproc stop-data {rttimes} { }
+# called when SYN_CTRL_REV with is_exit is received (for SPERC limited packets)
+#Agent/SPERC instproc stop-ctrl {} { }
+# Agent/SPERC instproc reset-tcl {} { }
 Agent/TCP set seqno_ 0
 Agent/TCP set t_seqno_ 0
 Agent/TCP set maxburst_ 0
@@ -1385,6 +1553,7 @@ Simulator set nix-routing 0
 
 #Routing Module variable setting
 RtModule set classifier_ ""
+RtModule set use_sperc_classifier_ 0
 RtModule/Base set classifier_ ""
 #RtModule/Hier set classifier_ [new Classifier/Hier]
 #RtModule/Manual set classifier_ [new Classifier/Hash/Dest 2]

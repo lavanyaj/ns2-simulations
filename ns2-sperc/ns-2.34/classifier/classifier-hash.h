@@ -36,8 +36,16 @@
 
 #include "classifier.h"
 #include "ip.h"
+#include "sperc/sperc-control.h"
+#include "sperc/sperc-hdrs.h" // typedef double rate_t etc.
+#include <string>
+#include <map>
+
+#ifndef ns_classifier_hash_h
+#define ns_classifier_hash_h
 
 class Flow;
+typedef std::pair<int, int> int_pair_t;
 
 /* class defs for HashClassifier (base), SrcDest, SrcDestFid HashClassifiers */
 class HashClassifier : public Classifier {
@@ -181,3 +189,50 @@ protected:
 	}
 };
 
+// SPERCLinkState refers to SPERCDestHashClassifier and vice-versa
+class SPERCLinkState;
+class SPERCDestHashClassifier : public DestHashClassifier {
+	friend class SPERCLinkState;
+public:
+	SPERCDestHashClassifier() : nodeid_ (-1), demux_(NULL) {
+		bind("nodeid_", &nodeid_);
+		// SPERC processing at switches
+		bind("SPERC_CONTROL_TRAFFIC_PC", &SPERC_CONTROL_TRAFFIC_PC_);
+		bind("SPERC_HEADROOM_PC", &SPERC_HEADROOM_PC_);
+		bind("SPERC_MAXSAT_TIMEOUT", &SPERC_MAXSAT_TIMEOUT_);
+		bind("SPERC_MAXRTT_TIMEOUT", &SPERC_MAXRTT_TIMEOUT_);
+		bind("SPERC_UPDATE_IN_REV", &SPERC_UPDATE_IN_REV_);
+	}
+	double now() {return Scheduler::instance().clock();}
+	// so we can perform SPERC processing for fwd packet using egress link
+	// and reverse packet using ingress link
+	virtual void recv(Packet* p, Handler* h);
+	// so we can log rom tcl when we install an mpath clasfr at a slot
+	virtual int command(int argc, const char*const* argv);
+protected:
+	int nodeid_;
+	std::map<NsObject*, bool> is_mp_slot_;
+	NsObject* demux_;
+	std::string demux_name_;
+
+	std::map<int_pair_t, SPERCLinkState> cltable; 
+	
+	// SPERCLinkState common to all links managed by this classifier	
+	double SPERC_CONTROL_TRAFFIC_PC_;
+	double SPERC_HEADROOM_PC_;       
+	double SPERC_MAXSAT_TIMEOUT_;
+	double SPERC_MAXRTT_TIMEOUT_;
+	int SPERC_UPDATE_IN_REV_;
+	// TODO: sperc link processing state
+	int get_ingress_fromnodeid(Packet *p);
+	void process_for_control_rate_limiting
+	(const std::pair<int, int>& egress_id, const std::pair<int, int>& ingress_id,Packet *p);
+	// will index into cltable for link corresponing to both ingress and egress at this node
+	
+	void process_forward_pkt(const int_pair_t& link_id, Packet *p); 
+	// will index into cltable for link corresponing to egress at this node
+
+	void process_reverse_pkt(const int_pair_t& link_id, Packet *p);	
+	// will index into cltable for link corresponing to ingress at this node
+};
+#endif

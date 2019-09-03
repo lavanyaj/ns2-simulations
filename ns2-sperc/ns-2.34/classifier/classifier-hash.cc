@@ -50,11 +50,15 @@ extern "C" {
 }
 
 #include <stdlib.h>
+#include <utility> // pair
 #include "config.h"
 #include "packet.h"
 #include "ip.h"
 #include "classifier.h"
 #include "classifier-hash.h"
+#include "sperc/sperc-hdrs.h" // sperc_hdr fields
+#include "connector.h" // to get nodeid form link head_
+
 
 /****************** HashClassifier Methods ************/
 
@@ -73,7 +77,6 @@ int HashClassifier::command(int argc, const char*const* argv)
 	/*
 	 * $classifier set-hash $hashbucket src dst fid $slot
 	 */
-
 	if (argc == 7) {
 		if (strcmp(argv[1], "set-hash") == 0) {
 			//xxx: argv[2] is ignored for now
@@ -219,7 +222,359 @@ int DestHashClassifier::command(int argc, const char*const* argv)
 	return(HashClassifier::command(argc, argv));
 } // command
 
+// SPERC Classifier - symmetric routing, SPERC processing based on ingress/ egress link
+static class SPERCDestHashClassifierClass : public TclClass {
+	public:
+	       SPERCDestHashClassifierClass() : TclClass("Classifier/Hash/Dest/SPERC") {}
+	       TclObject* create(int, const char*const*) {
+		               return new SPERCDestHashClassifier;
+		       }
+} class_hash_spercdest_classifier;
+
+int SPERCDestHashClassifier::command(int argc, const char*const* argv)
+{
+
+#ifdef LAVANYA_DEBUG
+	fprintf(stdout, "%s SPERCDestHashClassifier::command(%d,[",name(), argc);
+        for (int i = 0; i < argc; i++) {
+		fprintf(stdout, "%s,", argv[i]);
+	}
+        fprintf(stdout, "])\n");
+#endif // LAVANYA_DEBUG
+	// Log when a multi-path classifier is inserted in a slot (in ns-node.tcl)
+	// so we know there's one more level of indirection to get to head of
+	// egress link
+	if (argc == 3) {
+		if (strcmp(argv[1], "log-mpath-slot") == 0) {
+			NsObject *node = (NsObject*)TclObject::lookup(argv[2]);
+			#ifdef LAVANYA_DEBUG
+			if (node) fprintf(stdout, "logging object %llu as multi-path\n", node);
+			
+			#endif // LAVANYA_DEBUG
+			if (node) {
+				is_mp_slot_[node] = true;
+				return (TCL_OK);
+			} else {
+				fprintf(stderr,
+					"couldn't find object %llu (log-mpath-slot)\n",	node);
+				return (TCL_ERROR);
+			}
+		} else if (strcmp(argv[1], "log-demux") == 0) {
+			NsObject *node = (NsObject*)TclObject::lookup(argv[2]);
+
+			if (!demux_ and node) {
+				demux_ = node;
+				demux_name_.assign(argv[2]);
+				return (TCL_OK);
+			} else if (demux_ and node) {
+				fprintf(stderr,
+					"already set object %llu (%s) as demux, can't set new object %llu (log-demux %s) \n",\
+					demux_, demux_name_.c_str(), node, argv[2]);
+				return (TCL_ERROR);
+			} else if (demux_ and !node) {
+				fprintf(stderr,
+					"already set object %llu (%s) as demux. anyways couldn't find object %s \n",\
+					demux_, demux_name_.c_str(), argv[2]);
+				return (TCL_ERROR);
+
+			} else if (!demux_ and !node) {
+				fprintf(stderr,
+					"haven't set any objext as demux and couldn't find object %s (log-demux)\n", argv[2]);
+				return (TCL_ERROR);
+			}
+		}
+
+	} else if (argc == 5) {
+		if (strcmp(argv[1], "setup-sperc") == 0) {
+			// called in ns-lib.tcl as part of instproc simplex-link
+			int neighbor_id = atoi(argv[2]);
+			double bw = atof(argv[3]);
+			SPERCQueue * q;
+			if (!(q = (SPERCQueue*) TclObject::lookup(argv[4])))
+				return (TCL_ERROR);
+			#ifdef LAVANYA_DEBUG
+			fprintf(stdout, "classifier-hash.cc: set up sperc link between this node id %d to neighbor node id %d with link capacity %f\n", nodeid_, neighbor_id, bw);
+			#endif
+			auto egress = make_pair(nodeid_, neighbor_id);
+			auto ingress = make_pair(neighbor_id, nodeid_);
+			if (cltable.count(egress) or cltable.count(ingress)) {
+				fprintf(stderr, "setting up duplicate link between node id %d and neighbor node id %d\n", nodeid_, neighbor_id);
+			}
+			// some way to store map from egress to actual link object??
+
+			// we will set up a single link state for duplex link
+			// which has ingress link = (neighbor_id, nodeid_)
+			// and egress link = (nodeid_, neighbor_id)
+			// we will use the egress link name (nodeid_, neighbor_id)
+			// to index into this link state
+			//cltable[ingress].initialize(bw, this, neighbor_id, nodeid_);
+			cltable[egress].initialize((bubble) bw, this, nodeid_, neighbor_id, q);
+			//cltable[egress] = SPERCLinkState();
+			// bw is in Gb/s - maybe we need a function to go from b/s
+			// some rate units based on how much precision we have??
+			// assuming links have same bw and delay in both directions
+			//cltable.at(egress).initialize(bw, 
+			//			      this, nodeid_, neighbor_id);
+			//cltable.at(ingress).initialize(bw,
+			//			       this, neighbor_id, nodeid_);
+			return (TCL_OK);
+		}
+			// TODO: setup-sperc neighbor_id
+	}
+        return(DestHashClassifier::command(argc, argv));
+} // command
+
+/*
+ * objects only ever see "packet" events, which come either
+ * from an incoming link or a local agent (i.e., packet source).
+ * this is where we do SPERC ingress/ egress link processing
+ * i.e., at the entry_ of a node, recv is typically called by last
+ * element of the ingress link into this node, or by the agent
+ * on this node. it's not trivial to get ingress and egress link at node.
+ * we get ingress link from path_[hop] in hdr_sperc
+ * we get egress link using the slot/ NsObject* returned by classify()/find(), if there's
+ * only one path towards the packet's dst, the object returend is the head_
+ * of the egress link, we stored the fromnodeid_ and tonodeid_ in that object (in Tcl).
+ * if there are multiple paths, the object returned is the mutlipath classifier
+ * towards the dst, in that case, using *its* find() method will return the head_
+ *  at the egress link.
+ */
+void SPERCDestHashClassifier::recv(Packet* p, Handler*h)
+{
+
+	NsObject* node = find(p);
+	if (node == NULL) {
+		/*
+		 * XXX this should be "dropped" somehow.  Right now,
+		 * these events aren't traced.
+		 */
+		Packet::free(p);
+		return;
+	}
+	// #ifdef LAVANYA_DEBUG
+	// fprintf(stdout, 
+	//      "%s SPERCDestHashClassifier::recv() find() on packet with uid_ %d returned object %llu\n",
+	// 		name(), hdr_cmn::access(p)->uid_, (unsigned long long) node);
+	// #endif // LAVANYA_DEBUG
+	int ingress_fromnodeid = get_ingress_fromnodeid(p);
+	// Sometimes node might be the next classifier in a chain of classifiers
+	// at this node, in this case, we can to use node to look up the next hop
+	// For now, we only handle the case where the next node is either a multi-path
+	// classifier or not.
+	int egress_tonodeid = -1;
+	int cl1 = classify(p);
+	NsObject* node1 = NULL;
+	if (cl1 < 0 || cl1 >= nslot_ || (node1 = slot_[cl1]) == 0) { 
+		fprintf(stderr,
+			"Error! %s SPERC..Classifier::recv find() on packet with uid_ %d returned slot %d to object %llu, is_mp_slot_.count(cl1) is %d\n",
+			name(), hdr_cmn::access(p)->uid_, cl1,
+			(unsigned long long) node1, is_mp_slot_.count(node1));
+		exit(1);
+	} else {
+		// fprintf(stdout,
+		// 	"%s SPERC..Classifier::recv find() on packet with uid_ %d returned slot %d to object %llu, nslot_ is %d, is_mp_slot_.count(cl1) is %d\n",
+		// 	name(), hdr_cmn::access(p)->uid_, cl1,
+		// 	(unsigned long long) node1, nslot_, is_mp_slot_.count(node1));
+
+	}
+
+	if (demux_ and node1 == demux_) {
+		#ifdef LAVANYA_DEBUG
+		fprintf(stdout,
+			"%s SPERCClassifier::recv(uid_=%d) got  slot %d to demux classifier %llu\n", 
+			name(), hdr_cmn::access(p)->uid_, cl1,
+			(unsigned long long) node1);
+		#endif // LAVANYA_DEBUG
+		egress_tonodeid = nodeid_;
+	}
+	else if (is_mp_slot_.count(node1)) {
+		#ifdef LAVANYA_DEBUG
+		fprintf(stdout,
+			"%s SPERCClassifier::recv(uid_=%d) got  slot %d to multi-path object %llu\n", 
+			name(), hdr_cmn::access(p)->uid_, cl1,
+			(unsigned long long) node1);
+		#endif // LAVANYA_DEBUG
+		// node1 is a multipath classifier, we can look it up to find next  node
+		// note that this could modify MultiPathForwarder state (sort slots)
+		
+		NsObject* node2 = ((Classifier *) node1)->find(p);
+		egress_tonodeid = ((Connector *) node2)->tonodeid();
+
+		#ifdef LAVANYA_DEBUG
+		fprintf(stdout,
+			".. which returned object %llu which we hope is a Connector and which got us tonode %d\n",			
+			(unsigned long long) node2, 
+			egress_tonodeid);
+		#endif // LAVANYA_DEBUG
+	} else {
+		egress_tonodeid = ((Connector *) node1)->tonodeid();
+		#ifdef LAVANYA_DEBUG
+		fprintf(stdout,
+			"%s SPERCClassifier::recv(uid_=%d) got non-multipath slot %d to %llu, nodeid_: %d, egress_tonodeid: %d\n",
+			name(), hdr_cmn::access(p)->uid_, cl1,
+			(unsigned long long) node1,
+			nodeid_,
+			egress_tonodeid);
+		#endif // LAVANYA_DEBUG
+	}
+
+	hdr_cmn* cmn = hdr_cmn::access(p);
+	hdr_sperc* hdr = hdr_sperc::access(p);
+	const auto egress = std::make_pair(nodeid_, egress_tonodeid);
+	const auto ingress = std::make_pair(ingress_fromnodeid, nodeid_);
+
+	// some things to check about egress link
+
+	// catch errors when either node is -1
+
+	// if this a fwd packet received at the destination node i
+	// then it's going towards portclassifier w egress link i,i
+	// we don't want to process_fwd_pkt in this case
+
+	// if this is a rev packet received at the destination node i
+	// then it's coming from the Agent w ingress link i, i
+	// we don't want to process_rev_pkt in this case
+
+	// if this is a fwd packet received at the source node i
+	// then it's going towards next link (and coming from agent)
+	// we do want to process_fwd_pkt
+
+	// if this is a rev packet received at the source node i
+	// then it's coming from the previous link
+	// we do want to process_rev_pkt
+	if (cmn->ptype() == PT_SPERC_CTRL) {
+		process_for_control_rate_limiting(egress, ingress, p);	
+	}
+
+	if (cmn->ptype() == PT_SPERC_CTRL and hdr->is_fwd() and egress.first != egress.second) {
+		#ifdef LAVANYA_DEBUG_PATH
+		fprintf(stdout, "SPERCClassifier at node %d: Forward egress processing for pkt with ingress: (%d, %d); egress: (%d, %d); pkt: %s\n", 
+			nodeid_, ingress.first, ingress.second, egress.first, egress.second, hdr_sperc_ctrl::get_string(p).c_str());
+		#endif // LAVANYA_DEBUG_PATH
+		process_forward_pkt(egress, p);
+
+	// some things to check about ingress link
+	// if this is a packet received at source node
+	} else if (cmn->ptype() == PT_SPERC_CTRL and !hdr->is_fwd() and ingress.first != ingress.second) {
+		#ifdef LAVANYA_DEBUG_PATH
+		fprintf(stdout, "SPERCClassifier at node %d: Reverse ingress processing for pkt with ingress: (%d, %d); egress: (%d, %d); pkt: %s\n", 
+			nodeid_, ingress.first, ingress.second, egress.first, egress.second, hdr_sperc_ctrl::get_string(p).c_str());
+		#endif // LAVANYA_DEBUG_PATH
+		process_reverse_pkt(ingress, p);
+	} else {
+		#ifdef LAVANYA_DEBUG_PATH
+		fprintf(stdout, "SPERCClassifier at node %d: No SPERC processing ingress: (%d, %d); egress: (%d, %d); pkt: %s\n",
+			nodeid_, ingress.first, ingress.second, egress.first, egress.second, hdr_sperc_ctrl::get_string(p).c_str());
+		#endif // LAVANYA_DEBUG_PATH
+	}
+
+	node->recv(p,h);
+}
+
+int SPERCDestHashClassifier::get_ingress_fromnodeid(Packet *p) {
+	
+	hdr_sperc* hdr = hdr_sperc::access(p);
+	if (hdr->is_fwd()) {
+		int hop = hdr->fwd_hop();
+		#ifdef LAVANYA_DEBUG_PATH
+		fprintf(stdout, "SPERCClassifier at node %d: get_ingress_from_nodeid() for fwd pkt, use hop fwd_path_[%d]; pkt: %s\n",
+			nodeid_, 
+			(hop-1),
+			hdr_sperc_ctrl::get_string(p).c_str());
+		#endif // LAVANYA_DEBUG_PATH
+		if (hop > 0) {
+			int nodeid = hdr->fwd_path_[hop-1];
+			return nodeid;
+		}
+	} else {
+		int hop = hdr->rev_hop();
+		#ifdef LAVANYA_DEBUG_PATH
+		fprintf(stdout, "SPERCClassifier at node %d: get_ingress_from_nodeid() for rev pkt, use hop rev_path_[%d]; pkt: %s\n",
+			nodeid_, 
+			(hop-1), 
+			hdr_sperc_ctrl::get_string(p).c_str());
+		#endif // LAVANYA_DEBUG_PATH
+		if (hop > 0) {
+			int nodeid = hdr->rev_path_[hop-1];
+			return nodeid;
+		}
+	}
+
+	#ifdef LAVANYA_DEBUG_PATH
+	fprintf(stdout, 
+		"SPERCClassifier at node %d: get_ingress_from_nodeid() return -1 for  pkt: %s\n",
+		nodeid_, 
+		hdr_sperc_ctrl::get_string(p).c_str());
+	#endif // LAVANYA_DEBUG_PATH
+
+ return -1;
+
+}
+void SPERCDestHashClassifier::process_forward_pkt(const std::pair<int, int>& link_id, Packet *p) {
+#ifdef LAVANYA_DEBUG
+	fprintf(stdout, "SPERCDestHashClassifier::process_forward_pkt(link=(%d,%d), uid=%d )\n",
+		link_id.first, link_id.second, hdr_cmn::access(p)->uid_);
+#endif // LAVANYA_DEBUG
+	if (!cltable.count(link_id)) {
+		fprintf(stderr, "process_forward_pkt: no link state for %d->%d\n",
+			link_id.first, link_id.second);
+		exit(1);
+	}
+	cltable.at(link_id).process_egress(p);
+}
+
+void SPERCDestHashClassifier::process_reverse_pkt(const std::pair<int, int>& link_id, Packet *p) {
+#ifdef LAVANYA_DEBUG
+	fprintf(stdout, "SPERCDestHashClassifier::process_reverse_pkt(link=(%d,%d), uid=%d )\n",
+		link_id.first, link_id.second, hdr_cmn::access(p)->uid_);
+#endif // LAVANYA_DEBUG
+	// we will use the name of the egress link to index into the correct link state
+	auto egress = make_pair(link_id.second, link_id.first);
+	if (!cltable.count(egress)) {
+		fprintf(stderr, 
+			"process_reverse_pkt: no link state for ingress %d->%d/ egress %d-%d\n",
+			link_id.first, link_id.second, egress.first, egress.second);
+		exit(1);
+	}
+
+	cltable.at(egress).process_ingress(p);
+}
+
+void SPERCDestHashClassifier::process_for_control_rate_limiting
+(const std::pair<int, int>& egress_id, const std::pair<int, int>& ingress_id,Packet *p) {
+	#ifdef LAVANYA_DEBUG
+	fprintf(stdout, "SPERCDestHashClassifier::process_for_control_rate_limiting(egress=(%d,%d), ingress=(%d,%d), uid=%d, src=%d, dst=%d ) %s\n",
+		egress_id.first, egress_id.second, ingress_id.first, ingress_id.second,
+		hdr_cmn::access(p)->uid_, hdr_ip::access(p)->src(), hdr_ip::access(p)->dst(), 
+		hdr_sperc_ctrl::get_string(p).c_str());
+	#endif // LAVANYA_DEBUG
+
+	// we will use the name of the egress link to index into the correct link state
+	
+	// update link_state corresponding to (ingress_id.second, ingress_id.first)
+	if (ingress_id.first != ingress_id.second) {
+		auto link_name = make_pair(ingress_id.second, ingress_id.first);
+		if (!cltable.count(link_name)) {
+		fprintf(stderr, 
+			"process_for_control_rate_limiting: no link state for ingress %d->%d/ egress %d-%d at classifier at node %d\n",
+			ingress_id.first, ingress_id.second,
+			link_name.first, link_name.second, nodeid_);
+		exit(1);
+		}
+		cltable.at(link_name).process_for_control_rate_limiting(p);	
+	}
 
 
+	// update link_state corresponding to egress_id
+	if (egress_id.first != egress_id.second) {
+		if (!cltable.count(egress_id)) {
+		fprintf(stderr, 
+			"process_for_control_rate_limiting: no link state for egress %d-%d/  ingress %d->%d at classifier at node %d\n",
+			egress_id.first, egress_id.second, 
+			egress_id.second, egress_id.first,  nodeid_);
+		exit(1);
+		}
+		cltable.at(egress_id).process_for_control_rate_limiting(p);	
+	}
 
-
+}

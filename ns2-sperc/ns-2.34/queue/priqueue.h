@@ -57,9 +57,11 @@ public:
         PriQueue();
 
         int     command(int argc, const char*const* argv);
-        void    recv(Packet *p, Handler *h);
-
-        void    recvHighPriority(Packet *, Handler *);
+        // void    recv(Packet *p, Handler *h);
+        // void    recvHighPriority(Packet *, Handler *);
+        // replaced ^ with enque and enqueueHead
+        void enque(Packet *p);
+        void enqueHead(Packet *p);
         // insert packet at front of queue
 
         void filter(PacketFilter filter, void * data);
@@ -72,7 +74,7 @@ public:
 	void	Terminate(void);
 private:
         int Prefer_Routing_Protocols;
- 
+        bool isHighPriority(Packet *p);
 	/*
 	 * A global list of Interface Queues.  I use this list to iterate
 	 * over all of the queues at the end of the simulation and flush

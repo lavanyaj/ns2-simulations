@@ -60,6 +60,7 @@ RtModule instproc init {} {
 	$self instvar classifier_ next_rtm_
 	set next_rtm_ ""
 	set classifier_ ""
+	set use_sperc_classifier_ 0
 }
 
 # Only called when the default classifier of this module is REPLACED.
@@ -137,7 +138,14 @@ RtModule/Base instproc register { node } {
 	$self next $node
 
 	$self instvar classifier_
-	set classifier_ [new Classifier/Hash/Dest 32]
+        # lavanya
+	$self instvar use_sperc_classifier_
+	if { $use_sperc_classifier_ == 1 } {
+		set classifier_ [new Classifier/Hash/Dest/SPERC 32]
+		$classifier_ set nodeid_ [$node id]
+	} else {
+		set classifier_ [new Classifier/Hash/Dest 32]
+	}
 	$classifier_ set mask_ [AddrParams NodeMask 1]
 	$classifier_ set shift_ [AddrParams NodeShift 1]
 	# XXX Base should ALWAYS be the first module to be installed.
