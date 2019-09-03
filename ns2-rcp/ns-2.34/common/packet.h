@@ -69,7 +69,8 @@
 #define HDR_CDIFF(p)    (hdr_cdiff::access(p))  /* chalermak's diffusion*/
 //#define HDR_DIFF(p)     (hdr_diff::access(p))  /* SCADD's diffusion ported into ns */
 #define HDR_LMS(p)		(hdr_lms::access(p))
-
+#define HDR_SPERC(p)     (hdr_sperc::access(p)) // lavanya
+//#define HDR_RCP(p) (hdr_rcp::access(p)) // lavanya
 /* --------------------------------------------------------------------*/
 
 /*
@@ -182,8 +183,15 @@ static const packet_t PT_BLTRACE = 60;
 	// AOMDV packet
 static const packet_t PT_AOMDV = 61;
 
-        // insert new packet types here
-static packet_t       PT_NTYPE = 62; // This MUST be the LAST one
+// SPERC packet
+static const packet_t PT_SPERC = 62;
+static const packet_t PT_SPERC_CTRL = 63;
+
+// RCP packet
+static const packet_t PT_RCP = 64;
+
+// insert new packet types here
+static packet_t       PT_NTYPE = 65; // This MUST be the LAST one
 
 enum packetClass
 {
@@ -382,6 +390,12 @@ public:
 		
 		// AOMDV patch
 		name_[PT_AOMDV]= "AOMDV";
+
+		// SPERC
+		name_[PT_SPERC] = "sperc";
+		name_[PT_SPERC_CTRL] = "sperc_ctrl";
+
+		name_[PT_RCP] = "rcp";
 
 		name_[PT_NTYPE]= "undefined";
 	}

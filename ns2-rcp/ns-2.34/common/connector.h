@@ -49,6 +49,8 @@ public:
 	void target (NsObject *target) { target_ = target; }
 	virtual void drop(Packet* p);
 	void setDropTarget(NsObject *dt) {drop_ = dt; } 
+	inline int fromnodeid() {return fromnodeid_;}
+	inline int tonodeid() {return tonodeid_;}
 protected:
 	virtual void drop(Packet* p, const char *s);
 	int command(int argc, const char*const* argv);
@@ -57,6 +59,8 @@ protected:
 
 	NsObject* target_;
 	NsObject* drop_;	// drop target for this connector
+	int fromnodeid_;
+	int tonodeid_;
 };
 
 #endif

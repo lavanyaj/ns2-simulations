@@ -150,10 +150,14 @@ foreach prot {
 	TFRC 	# TFRC, transport protocol
 	TFRC_ACK 	# TFRC, transport protocol
 	XCP 	# XCP, transport protocol
+	# lavanya:
+	SPERC # SPERC, all packets using SPERC transport protocol
+	SPERC_CTRL # SPERC_CTRL, ctrl packets for SPERC transport protocol
+	RCP # RCP, transport protocol
 # Application-Layer Protocols:
 	Message # a protocol to carry text messages
 	Ping 	# Ping
-    PBC     # PBC
+	PBC     # PBC
 # Wireless:
 	ARP 	# Address Resolution Protocol, network wireless stack
 	GAF 	# Geographic Adaptive Delity, for ad-hoc networks
@@ -196,6 +200,10 @@ Simulator instproc create_packetformat { } {
 		if [info exists tab_($cl)] {
 			set off [$pm allochdr $cl]
 			$cl offset $off
+			# lavanya: logging header sizes and offsets from C struct
+			# for active headers
+			set tmp [$cl set hdrlen_]
+			puts "offset of $cl is $off, size in bytes is $tmp"
 		}
 	}
 	$self set packetManager_ $pm

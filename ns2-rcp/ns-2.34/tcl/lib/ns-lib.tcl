@@ -1042,6 +1042,28 @@ Simulator instproc simplex-link { n1 n2 bw delay qtype args } {
 			set qtype [lindex $args 0]
 			set q [new Queue/$qtype]
 		}
+		# lavanya: add node info to queues
+		DRR/SPERC {
+			if { [llength $args] == 0} {
+				set q [new Queue/$qtype]
+			} else {
+				set q [new Queue/$qtype $args]
+			}
+			# puts "for sperc queue $q, setting fromnodeid_ to $sid and tonodeid_ to $did"
+			$q set fromnodeid_ $sid
+			$q set tonodeid_ $did
+		}
+		DropTail/RCP {
+			if { [llength $args] == 0} {
+				set q [new Queue/$qtype]
+			} else {
+				set q [new Queue/$qtype $args]
+			}
+			# puts "for rcp queue $q, setting fromnodeid_ to $sid and tonodeid_ to $did"
+			$q set fromnodeid_ $sid
+			$q set tonodeid_ $did
+		}
+
 		default {
 			if { [llength $args] == 0} {
 				set q [new Queue/$qtype]
@@ -1090,6 +1112,14 @@ Simulator instproc simplex-link { n1 n2 bw delay qtype args } {
 	}
 	$n1 add-neighbor $n2 $pushback
 	
+	# install sperc link state for egress link n1-n2 and ingress link n2-n1 at n1
+	# puts "setup sperc link state in the classifier at node $n1 for egress link [$n1 id]-[$n2 id] and ingress link [$n2 id]-[$n1 id], with bw $bw Gb/s"
+	if {$qtype == "DRR/SPERC"} {
+		# puts "setting up link state for $n1 - $n2 in sperc classifier at $n1"
+		set clsfr [$n1 set classifier_]
+		$clsfr setup-sperc [$n2 id] $bw
+	}
+
 	#XXX yuck
 	if {[string first "RED" $qtype] != -1 || 
 	    [string first "PI" $qtype] != -1 || 
@@ -1493,12 +1523,16 @@ Simulator instproc trace-queue { n1 n2 {file ""} } {
 # to learn average q size etc.  XXX this API still rough
 #
 Simulator instproc monitor-queue { n1 n2 qtrace { sampleInterval 0.1 } } {
-	$self instvar link_
+	$self instvar link_	
+	#set tmp [[$link_([$n1 id]:[$n2 id]) queue] info class]
+	#puts "lavanya: monitor-queue got link $link_([$n1 id]:[$n2 id]) with $tmp queue class for nodes $n1 and $n2, qtrace $qtrace, interval $sampleInterval self $self"
 	return [$link_([$n1 id]:[$n2 id]) init-monitor $self $qtrace $sampleInterval]
 }
 
 Simulator instproc queue-limit { n1 n2 limit } {
 	$self instvar link_
+	#puts "lavanya: queue-limit got link $link_([$n1 id]:[$n2 id]) for nodes $n1 and $n2"
+
 	[$link_([$n1 id]:[$n2 id]) queue] set limit_ $limit
 	if {[[$link_([$n1 id]:[$n2 id]) queue] info class] == "Queue/XCP"} {
 		[$link_([$n1 id]:[$n2 id]) queue] queue-limit $limit
@@ -1542,7 +1576,6 @@ Simulator instproc multihome-attach-agent { core agent } {
 
 Simulator instproc attach-agent { node agent } {
 	$node attach $agent
-	# $agent set nodeid_ [$node id]
 
         # Armando L. Caro Jr. <acaro@@cis,udel,edu> 10/22/2001 
 	#

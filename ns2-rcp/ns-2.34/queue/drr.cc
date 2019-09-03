@@ -51,133 +51,51 @@ static const char rcsid[] =
 #include "config.h"   // for string.h
 #include <stdlib.h>
 #include "queue.h"
+#include "drr.h"
+#include "packet.h"
+#include "sperc/sperc-hdrs.h"
 
-class PacketDRR;
-class DRR;
 
-class PacketDRR : public PacketQueue {
-	PacketDRR(): pkts(0),src(-1),bcount(0),prev(0),next(0),deficitCounter(0),turn(0) {}
-	friend class DRR;
-	protected :
-	int pkts;
-	int src;    //to detect collisions keep track of actual src address
-	int bcount; //count of bytes in each flow to find the max flow;
-	PacketDRR *prev;
-	PacketDRR *next;
-	int deficitCounter; 
-	int turn;
-	inline PacketDRR * activate(PacketDRR *head) {
-		if (head) {
-			this->prev = head->prev;
-			this->next = head;
-			head->prev->next = this;
-			head->prev = this;
-			return head;
-		}
-		this->prev = this;
-		this->next = this;
-		return this;
-	}
-	inline PacketDRR * idle(PacketDRR *head) {
-		if (head == this) {
-			if (this->next == this)
-				return 0;
-			this->next->prev = this->prev;
-			this->prev->next = this->next;
-			return this->next;
-		}
-		this->next->prev = this->prev;
-		this->prev->next = this->next;
-		return head;
-	}
-};
-
-class DRR : public Queue {
-	public :
-	DRR();
-	virtual int command(int argc, const char*const* argv);
-	Packet *deque(void);
-	void enque(Packet *pkt);
-	int hash(Packet *pkt);
-	void clear();
-protected:
-	int buckets_ ; //total number of flows allowed
-	int blimit_;    //total number of bytes allowed across all flows
-	int quantum_;  //total number of bytes that a flow can send
-	int mask_;     /*if set hashes on just the node address otherwise on 
-			 node+port address*/
-	int bytecnt ; //cumulative sum of bytes across all flows
-	int pktcnt ; // cumulative sum of packets across all flows
-	int flwcnt ; //total number of active flows
-	PacketDRR *curr; //current active flow
-	PacketDRR *drr ; //pointer to the entire drr struct
-
-	inline PacketDRR *getMaxflow (PacketDRR *curr) { //returns flow with max pkts
-		int i;
-		PacketDRR *tmp;
-		PacketDRR *maxflow=curr;
-		for (i=0,tmp=curr; i < flwcnt; i++,tmp=tmp->next) {
-			if (maxflow->bcount < tmp->bcount)
-				maxflow=tmp;
-		}
-		return maxflow;
-	}
-  
-public:
-	//returns queuelength in packets
-	inline int length () {
-		return pktcnt;
-	}
-
-	//returns queuelength in bytes
-	inline int blength () {
-		return bytecnt;
-	}
-};
-
-static class DRRClass : public TclClass {
-public:
-	DRRClass() : TclClass("Queue/DRR") {}
-	TclObject* create(int, const char*const*) {
-		return (new DRR);
-	}
-} class_drr;
-
-DRR::DRR()
+DRR::DRR() : buckets_(16), quantum_(250), drr(0), curr(0), flwcnt(0), bytecnt(0), pktcnt(0), mask_(0)
 {
-	buckets_=16;
-	quantum_=250;
-	drr=0;
-	curr=0;
-	flwcnt=0;
-	bytecnt=0;
-	pktcnt=0;
-	mask_=0;
 	bind("buckets_",&buckets_);
 	bind("blimit_",&blimit_);
 	bind("quantum_",&quantum_);
 	bind("mask_",&mask_);
+	bind("sperc_control_traffic_pc_", &dbl_sperc_control_traffic_pc_);
+	if (dbl_sperc_control_traffic_pc_ <= 0 or dbl_sperc_control_traffic_pc_ >= 100) {
+		fprintf(stderr, "DRR: invalid sperc control pc %f\n", dbl_sperc_control_traffic_pc_);
+		exit(1);
+	}
+	mul_ = (100.0 - (dbl_sperc_control_traffic_pc_))/(dbl_sperc_control_traffic_pc_);
+	if (mul_ <= 0) {
+		fprintf(stderr, "DRR: invalid mul_ %d\n", mul_);
+		exit(1);
+	}
+	fprintf(stderr, "(not error) DRR sperc_control_traffic_pc_  %f mul_ %d drr %llu\n", dbl_sperc_control_traffic_pc_, mul_, (unsigned long long) drr);
 }
  
 void DRR::enque(Packet* pkt)
 {
 	PacketDRR *q,*remq;
-	int which;
+
 
 	hdr_cmn *ch= hdr_cmn::access(pkt);
 	hdr_ip *iph = hdr_ip::access(pkt);
-	if (!drr)
+
+
+	if (drr == 0) {
+	
 		drr=new PacketDRR[buckets_];
-	which= hash(pkt) % buckets_;
+		for (int i = 0; i < buckets_; i++) drr[i].index = i;
+	}
+
+	int which = 1;
+	if (hdr_cmn::access(pkt)->ptype() == PT_SPERC_CTRL) which = 0; // hash(pkt) % buckets_;
+	// fprintf(stdout, "indexing into %d of drr for pkt with ptype %d", which, hdr_cmn::access(pkt)->ptype());
+
 	q=&drr[which];
 
-	/*detect collisions here */
-	int compare=(!mask_ ? ((int)iph->saddr()) : ((int)iph->saddr()&0xfff0));
-	if (q->src ==-1)
-		q->src=compare;
-	else
-		if (q->src != compare)
-			fprintf(stderr,"Collisions between %d and %d src addresses\n",q->src,(int)iph->saddr());      
 
 	q->enque(pkt);
 	++q->pkts;
@@ -192,6 +110,7 @@ void DRR::enque(Packet* pkt)
 			q->deficitCounter=0;
 			++flwcnt;
 		}
+
 	while (bytecnt > blimit_) {
 		Packet *p;
 		hdr_cmn *remch;
@@ -202,6 +121,17 @@ void DRR::enque(Packet* pkt)
 		remiph=hdr_ip::access(p);
 		remq->bcount -= remch->size();
 		bytecnt -= remch->size();
+		PacketDRR *qc = &drr[0];
+		PacketDRR *qd = &drr[1];
+
+		if (remq->index == 0) {
+			fprintf(stderr,
+				"DRR dropping a control packet %s. qc %d bytes, %d pkts. qd %d bytes, %d pkts bytecnt %d blimit_ %d flwcnt %d\n",
+				hdr_sperc_ctrl::get_string(p).c_str(), qc->bcount, qc->pkts,
+				qd->bcount, qd->pkts, bytecnt, blimit_, flwcnt);
+			exit(1);
+		}
+
 		drop(p);
 		--remq->pkts;
 		--pktcnt;
@@ -218,13 +148,18 @@ Packet *DRR::deque(void)
 	hdr_ip *iph;
 	Packet *pkt=0;
 	if (bytecnt==0) {
-		//fprintf (stderr,"No active flow\n");
 		return(0);
 	}
   
 	while (!pkt) {
 		if (!curr->turn) {
-			curr->deficitCounter+=quantum_;
+			if (curr->index == 0) {
+				// increase by quantum_ for ctrl traffic
+				curr->deficitCounter+=quantum_;
+			} else {
+				// 
+				curr->deficitCounter+=(quantum_ * mul_);
+			}
 			curr->turn=1;
 		}
 
@@ -252,6 +187,8 @@ Packet *DRR::deque(void)
 			pkt=0;
 		}
 	}
+	fprintf(stderr, "deque: should not be reached\n");
+	exit(1);
 	return 0;    // not reached
 }
 

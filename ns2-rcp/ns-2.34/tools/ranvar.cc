@@ -45,7 +45,9 @@ static const char rcsid[] =
 #endif
 
 #include <stdio.h>
+#include <unistd.h>
 #include "ranvar.h"
+#include <cerrno>
 
 RandomVariable::RandomVariable()
 {
@@ -216,7 +218,7 @@ double GammaRandomVariable::value()
 	// ACM Transactions on mathematical software, Vol. 26, No. 3, Sept. 2000
 	if (alpha_ < 1) {
 		double u = rng_->uniform(1.0);
-		return GammaRandomVariable::GammaRandomVariable(1.0 + alpha_, beta_).value() * pow (u, 1.0 / alpha_);
+		return GammaRandomVariable(1.0 + alpha_, beta_).value() * pow (u, 1.0 / alpha_);
 	}
 	
 	double x, v, u;
@@ -483,8 +485,8 @@ int EmpiricalRandomVariable::command(int argc, const char*const* argv)
 	if (argc == 3) {
 		if (strcmp(argv[1], "loadCDF") == 0) {
 			if (loadCDF(argv[2]) == 0) {
-				tcl.resultf("%s loadCDF %s: invalid file",
-					    name(), argv[2]);
+				tcl.resultf("%s loadCDF %s: invalid file errno %d",
+					    name(), argv[2], errno);
 				return (TCL_ERROR);
 			}
 			return (TCL_OK);
@@ -498,7 +500,11 @@ int EmpiricalRandomVariable::loadCDF(const char* filename)
 	FILE* fp;
 	char line[256];
 	CDFentry* e;
-
+	char path[1000];
+	// if (getcwd(path, 1000)) {
+	// 	fprintf(stdout, "loading CDF from cwd %s\n", path);
+	// }
+	
 	fp = fopen(filename, "r");
 	if (fp == 0) 
 		return 0;

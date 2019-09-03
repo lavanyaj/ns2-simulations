@@ -178,6 +178,11 @@ SimpleLink instproc init { src dst bw delay q {lltype "DelayLink"} } {
 	$drophead_ target [$ns set nullAgent_]
 
 	set head_ [new Connector]
+        # lavanya: so we can sort classifier slots that point to link head_
+        # by tonodeid_, all connectors have fromnodeid_ and tonodeid_
+        $head_ set fromnodeid_ [$src id]
+        $head_ set tonodeid_ [$dst id]
+
 	$head_ set link_ $self
 
 	#set head_ $queue_ -> replace by the following
@@ -193,8 +198,15 @@ SimpleLink instproc init { src dst bw delay q {lltype "DelayLink"} } {
 	$link_ set bandwidth_ $bw
 	$link_ set delay_ $delay
 	$queue_ target $link_
+
 	$link_ target [$dst entry]
 	$queue_ drop-target $drophead_
+
+        set queue_target [$queue_ target]
+        set queue_class  [$queue_ info class]
+        set link_target [$link_ target]
+        set link_class [$link_ info class]
+        # lavanya: puts " in init with queue $queue_, target $queue_target, class $queue_class, intended target of queue $queue_ is link $link_, link_target $link_target, class $link_class"
 
 	# XXX
 	# put the ttl checker after the delay
@@ -398,6 +410,10 @@ SimpleLink instproc attach-monitors { insnoop outsnoop dropsnoop qmon } {
 
 	$self add-to-head $snoopIn_
 
+        set queue_target [$queue_ target]
+        set queue_class  [$queue_ info class]
+        # puts "lavanya: in attach-monitors with queue $queue_, target $queue_target, class $queue_class, snoopOut_ $snoopOut_"
+
 	$snoopOut_ target [$queue_ target]
 	$queue_ target $snoopOut_
 
@@ -478,14 +494,14 @@ SimpleLink instproc start-tracing { } {
 } 
 
 SimpleLink instproc queue-sample-timeout { } {
-	$self instvar qMonitor_ ns_ qtrace_ sampleInterval_
-	$self instvar fromNode_ toNode_
+    $self instvar qMonitor_ ns_ qtrace_ sampleInterval_
+    $self instvar fromNode_ toNode_
 	
-	set qavg [$self sample-queue-size]
-	if {$qtrace_ != 0} {
-		puts $qtrace_ "[$ns_ now] [$fromNode_ id] [$toNode_ id] $qavg"
-	}
-	$ns_ at [expr [$ns_ now] + $sampleInterval_] "$self queue-sample-timeout"
+    set qavg [$self sample-queue-size]
+    if {$qtrace_ != 0} {
+	puts $qtrace_ "[$ns_ now] [$fromNode_ id] [$toNode_ id] $qavg"
+    }
+    $ns_ at [expr [$ns_ now] + $sampleInterval_] "$self queue-sample-timeout"
 }
 
 SimpleLink instproc sample-queue-size { } {
@@ -518,9 +534,11 @@ SimpleLink instproc sample-queue-size { } {
 
 	#return "$meanBytesQ $meanPktsQ"
 
-	$qMonitor_ instvar pdrops_ pdepartures_ parrivals_ bdrops_ bdepartures_ barrivals_
+    $qMonitor_ instvar pdrops_ pdepartures_ parrivals_ bdrops_ bdepartures_ barrivals_ sperc_ctrl_barrivals_ sperc_data_barrivals_ sperc_ctrl_bdepartures_ sperc_data_bdepartures_
+# sperc_ctrl_bdrops_ sperc_data_bdrops_
 
-	return "$meanBytesQ $meanPktsQ $parrivals_ $pdepartures_ $pdrops_ $barrivals_ $bdepartures_ $bdrops_"	
+    # lavanya: mean queue size alculated here in tcl, rest in c++ ns-2.34/tools/queue-monitor.h
+    return "$meanBytesQ $meanPktsQ $parrivals_ $pdepartures_ $pdrops_ $barrivals_ $bdepartures_ $bdrops_ $sperc_ctrl_barrivals_ $sperc_data_barrivals_ $sperc_ctrl_bdepartures_ $sperc_data_bdepartures_"
 
 }	
 

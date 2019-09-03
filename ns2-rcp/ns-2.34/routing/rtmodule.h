@@ -101,6 +101,7 @@ public:
 protected:
 	Node *n_;
 	Classifier *classifier_;
+	int use_sperc_classifier_;
 };
 
 class BaseRoutingModule : public RoutingModule {

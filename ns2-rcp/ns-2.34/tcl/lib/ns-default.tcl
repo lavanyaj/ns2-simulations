@@ -55,6 +55,31 @@ set MAXSEQ 1073741824
 set tcl_precision 17
 
 Connector set debug_ false
+# lavanya added fromnodeid_ and tonodeid_ to use when sorting next hop by tonodeid_
+Connector set fromnodeid_ -1
+Connector set tonodeid_ -1
+# warning that class variable is not defined, maybe these inherit from Connector in C++?
+Agent/Null set fromnodeid_ -1
+Agent/Null set tonodeid_ -1
+DelayLink set fromnodeid_ -1
+DelayLink set tonodeid_ -1
+TTLChecker set fromnodeid_ -1
+TTLChecker set tonodeid_ -1
+Trace/Enque set fromnodeid_ -1
+Trace/Enque set tonodeid_ -1
+Trace/Deque set fromnodeid_ -1
+Trace/Deque set tonodeid_ -1
+Trace/Recv set fromnodeid_ -1
+Trace/Recv set tonodeid_ -1
+Trace/Drop set fromnodeid_ -1
+Trace/Drop set tonodeid_ -1
+Agent/rtProto/DV set tonodeid_ -1
+Agent/rtProto/DV set fromnodeid_ -1
+Agent/rtProto/Direct set tonodeid_ -1
+Agent/rtProto/Direct set fromnodeid_ -1
+SnoopQueue/Drop set fromnodeid_ -1
+SnoopQueue/Drop set tonodeid_ -1
+
 TTLChecker set debug_ false
 
 Trace set src_ -1
@@ -102,7 +127,7 @@ FQLink set queueManagement_ DropTail
 Queue/DropTail set drop_front_ false
 Queue/DropTail set summarystats_ false
 Queue/DropTail set queue_in_bytes_ false
-Queue/DropTail set mean_pktsize_ 500
+Queue/DropTail set mean_pktsize_ 1500
 
 Queue/DropTail/PriQueue set Prefer_Routing_Protocols    1
 
@@ -118,6 +143,7 @@ Queue/dsRED set ecn_ 0
 # XXX Temporary fix XXX
 # support only xcp flows; set to 1 when supporting both tcp and xcp flows; temporary fix for allocating link BW between xcp and tcp queues until dynamic queue weights come into effect. This fix should then go away
 Queue/XCP set tcp_xcp_on_ 0  ;
+
 
 Queue/RED set bytes_ true ;		# default changed on 10/11/2004.
 Queue/RED set queue_in_bytes_ true ;	# default changed on 10/11/2004.
@@ -257,6 +283,7 @@ Queue/DRR set buckets_ 10
 Queue/DRR set blimit_ 25000
 Queue/DRR set quantum_ 250
 Queue/DRR set mask_ 0
+Queue/DRR set control_traffic_pc_ 0
 
 # Integrated SRR (1/20/2002, xuanc)
 Queue/SRR set maxqueuenumber_ 16
@@ -279,6 +306,10 @@ SnoopQueue/Out set debug_ false
 SnoopQueue/Drop set debug_ false
 SnoopQueue/EDrop set debug_ false
 SnoopQueue/Tagger set debug_ false
+SnoopQueue/In set fromnodeid_ -1
+SnoopQueue/In set tonodeid_ -1
+SnoopQueue/Out set fromnodeid_ -1
+SnoopQueue/Out set tonodeid_ -1
 
 PacketQueue/Semantic set acksfirst_ false
 PacketQueue/Semantic set filteracks_ false
@@ -297,6 +328,14 @@ QueueMonitor set bdepartures_ 0
 QueueMonitor set pdrops_ 0
 QueueMonitor set pmarks_ 0
 QueueMonitor set bdrops_ 0
+
+QueueMonitor set sperc_ctrl_barrivals_ 0
+QueueMonitor set sperc_ctrl_bdepartures_ 0
+QueueMonitor set sperc_ctrl_bdrops_ 0
+
+QueueMonitor set sperc_data_barrivals_ 0
+QueueMonitor set sperc_data_bdepartures_ 0
+QueueMonitor set sperc_data_bdrops_ 0
 
 QueueMonitor set qs_pkts_ 0
 QueueMonitor set qs_bytes_ 0
@@ -380,6 +419,7 @@ Classifier set debug_ false
 Classifier/Hash set default_ -1; # none
 Classifier/Replicator set ignore_ 0
 
+
 # MPLS Classifier
 Classifier/Addr/MPLS set ttl_   32
 Classifier/Addr/MPLS set trace_mpls_ 0
@@ -388,6 +428,11 @@ Classifier/Addr/MPLS set enable_reroute_    0
 Classifier/Addr/MPLS set reroute_option_ 0
 Classifier/Addr/MPLS set control_driven_ 0
 Classifier/Addr/MPLS set data_driven_ 0
+
+# Mohammad
+Classifier/MultiPath set nodeid_ -1
+Classifier/MultiPath set perflow_ 1
+Classifier/MultiPath set symmetric_ 1 
 
 #
 # FEC models
@@ -1385,6 +1430,7 @@ Simulator set nix-routing 0
 
 #Routing Module variable setting
 RtModule set classifier_ ""
+RtModule set use_sperc_classifier_ 0
 RtModule/Base set classifier_ ""
 #RtModule/Hier set classifier_ [new Classifier/Hier]
 #RtModule/Manual set classifier_ [new Classifier/Hash/Dest 2]

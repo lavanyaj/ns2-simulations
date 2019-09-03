@@ -352,12 +352,18 @@ Node instproc add-routes {id ifs} {
 			# 3. install the mclassifier in the node classifier_
 			#
 			set mpathClsfr_($id) [new Classifier/MultiPath]
+			$mpathClsfr_($id) set nodeid_ [$self id]
 			if {$routes_($id) > 0} {
 				assert "$routes_($id) == 1"
 				$mpathClsfr_($id) installNext \
 						[$classifier_ in-slot? $id]
 			}
 			$classifier_ install $id $mpathClsfr_($id)
+			# lavanya: log multipath ns object in classifier_
+			if {[$classifier_ info class] == "Classifier/Hash/Dest/SPERC"} {
+				#puts "log $mpathClsfr_($id) as mpath slot"
+				$classifier_ log-mpath-slot $mpathClsfr_($id)
+			}
 		}
 		foreach L $ifs {
 			$mpathClsfr_($id) installNext [$L head]
@@ -491,6 +497,15 @@ Node instproc attach { agent { port "" } } {
 		# point the node's routing entry to itself
 		# at the port demuxer (if there is one)
 		$self add-route $address_ $dmux_
+		# lavanya: register dmux_ as a demux nsobject with the main (SPERC) classifier at C++
+		# so we know what to do when looking up egress link for a packet towards dmux_
+		set node [$agent set node_]
+		# lavanya: not sure classifier is set up at this point, let's try. yeah works.		
+		set node_entry [$node set classifier_]
+		if {[$node_entry info class] == "Classifier/Hash/Dest/SPERC"} {
+			#puts "log $dmux_ as dmux"
+			$node_entry log-demux $dmux_
+		}
 	}
 	if { $port == "" } {
 		set port [$dmux_ alloc-port [[Simulator instance] nullagent]]

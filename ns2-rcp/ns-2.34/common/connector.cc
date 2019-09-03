@@ -48,8 +48,10 @@ public:
 	}
 } class_connector;
 
-Connector::Connector() : target_(0), drop_(0)
+Connector::Connector() : target_(0), drop_(0), fromnodeid_(-1), tonodeid_(-1)
 {
+	bind("fromnodeid_", &fromnodeid_);
+	bind("tonodeid_", &tonodeid_);
 }
 
 

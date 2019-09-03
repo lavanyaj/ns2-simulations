@@ -301,6 +301,8 @@ QueueMonitor instproc reset {} {
 	$self instvar parrivals_ barrivals_
 	$self instvar pdepartures_ bdepartures_
 	$self instvar pdrops_ bdrops_
+        $self instvar sperc_ctrl_barrivals_ sperc_ctrl_bdepartures_ sperc_ctrl_bdrops_
+        $self instvar sperc_data_barrivals_ sperc_data_bdepartures_ sperc_data_bdrops_
 
 	# don't reset size_ and pkts_ here
 	# because they are not cumulative measurements
@@ -311,6 +313,14 @@ QueueMonitor instproc reset {} {
 	set bdepartures_ 0
 	set pdrops_ 0
 	set bdrops_ 0
+    
+        set sperc_ctrl_barrivals_ 0
+        set sperc_ctrl_bdepartures_ 0
+        set sperc_ctrl_bdrops_ 0
+
+        set sperc_data_barrivals_ 0
+        set sperc_data_bdepartures_ 0
+        set sperc_data_bdrops_ 0
 
 	set bint [$self get-bytes-integrator]
 	if { $bint != "" } {

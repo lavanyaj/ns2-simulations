@@ -177,7 +177,7 @@ OBJ_CC = \
 	apps/app.o apps/telnet.o tcp/tcplib-telnet.o \
 	tools/trafgen.o trace/traffictrace.o tools/pareto.o \
 	tools/expoo.o tools/cbr_traffic.o \
-	adc/tbf.o adc/resv.o adc/sa.o tcp/saack.o \
+	adc/tbf.o adc/my_tbf.o adc/resv.o adc/sa.o tcp/saack.o \
 	tools/measuremod.o adc/estimator.o adc/adc.o adc/ms-adc.o \
 	adc/timewindow-est.o adc/acto-adc.o \
         adc/pointsample-est.o adc/salink.o adc/actp-adc.o \
@@ -244,6 +244,7 @@ OBJ_CC = \
 	mac/arp.o mobile/god.o mobile/dem.o \
 	mobile/topography.o mobile/modulation.o \
 	queue/priqueue.o queue/dsr-priqueue.o \
+	queue/sperc_priqueue.o \
 	mac/phy.o mac/wired-phy.o mac/wireless-phy.o \
 	mac/mac-timers.o trace/cmu-trace.o mac/varp.o \
 	mac/mac-simple.o \
@@ -309,6 +310,7 @@ OBJ_CC = \
 	mcast/lms-sender.o \
 	queue/delayer.o \
 	xcp/xcpq.o xcp/xcp.o xcp/xcp-end-sys.o \
+	rcp/rcp-host.o rcp/rcp.o rcp/rcp-routing-host.o \
 	wpan/p802_15_4csmaca.o wpan/p802_15_4fail.o \
 	wpan/p802_15_4hlist.o wpan/p802_15_4mac.o \
 	wpan/p802_15_4nam.o wpan/p802_15_4phy.o \

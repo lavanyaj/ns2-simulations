@@ -474,9 +474,9 @@ bool God::IsNeighbor(int i, int j)
     return false;
   }
 
-  vector a(mb_node[i]->X(), mb_node[i]->Y(), mb_node[i]->Z());
-  vector b(mb_node[j]->X(), mb_node[j]->Y(), mb_node[j]->Z());
-  vector d = a - b;
+  ::vector a(mb_node[i]->X(), mb_node[i]->Y(), mb_node[i]->Z());
+  ::vector b(mb_node[j]->X(), mb_node[j]->Y(), mb_node[j]->Z());
+  ::vector d = a - b;
 
   if (d.length() < RANGE)
     return true;

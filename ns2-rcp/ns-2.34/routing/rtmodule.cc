@@ -140,6 +140,7 @@ public:
 RoutingModule::RoutingModule() : 
 	next_rtm_(NULL), n_(NULL), classifier_(NULL) {
 	bind("classifier_", (TclObject**)&classifier_);
+	bind("use_sperc_classifier_", &use_sperc_classifier_);
 }
 
 int RoutingModule::command(int argc, const char*const* argv)
