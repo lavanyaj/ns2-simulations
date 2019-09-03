@@ -45,34 +45,56 @@
 #include "connector.h"
 #include "timer-handler.h"
 
+#include <map>
+
+using namespace std;
+
 class TBF;
+class TBF_Value;
 
 class TBF_Timer : public TimerHandler {
 public:
-	TBF_Timer(TBF *t) : TimerHandler() { tbf_ = t;}
+	TBF_Timer(TBF_Value *t) : TimerHandler() {
+		tbf_value_ = t;
+	}
 	
 protected:
 	virtual void expire(Event *e);
-	TBF *tbf_;
+	TBF_Value *tbf_value_;
 };
 
-
-class TBF : public Connector {
+class TBF_Value {
 public:
-	TBF();
-	~TBF();
+	TBF_Value(TBF *tbf);
+	~TBF_Value();
 	void timeout(int);
-protected:
-	void recv(Packet *, Handler *);
+
 	double getupdatedtokens();
-	double tokens_; //acumulated tokens
-	double rate_; //token bucket rate
-	int bucket_; //bucket depth
+	int flow_id_;
+	long long tokens_;
+	long long rate_;
+	long long bucket_;
 	int qlen_;
 	double lastupdatetime_;
 	PacketQueue *q_;
 	TBF_Timer tbf_timer_;
 	int init_;
+	int prio_;
+	TBF *tbf_;
+};
+
+typedef map<int, TBF_Value*> fid_tbf;
+typedef fid_tbf::iterator fid_tbf_itr;
+typedef fid_tbf::value_type fid_tbf_val;
+
+class TBF : public Connector {
+public:
+	int command(int argc, const char*const* argv);
+protected:
+	void recv(Packet *, Handler *);
+	void activate_fid(int fid, long long rate, long long bucket, int qlen, int prio);
+
+	fid_tbf tbfs_;
 };
 
 #endif

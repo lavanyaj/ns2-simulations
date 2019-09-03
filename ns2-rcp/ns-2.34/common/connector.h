@@ -49,13 +49,14 @@ public:
 	void target (NsObject *target) { target_ = target; }
 	virtual void drop(Packet* p);
 	void setDropTarget(NsObject *dt) {drop_ = dt; } 
+	NsObject* target_;
 protected:
 	virtual void drop(Packet* p, const char *s);
 	int command(int argc, const char*const* argv);
 	void recv(Packet*, Handler* callback = 0);
 	inline void send(Packet* p, Handler* h) { target_->recv(p, h); }
 
-	NsObject* target_;
+
 	NsObject* drop_;	// drop target for this connector
 };
 
