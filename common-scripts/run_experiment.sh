@@ -147,9 +147,9 @@ function run_experiment_using_config {
 
 function setup_for_fct {
     max_cpus=3;
-    KW="sep2c"
+    KW="sep8c"
     EXPERIMENT="fct"
-    declare -a SCHEMES=("pfabric" "sperc" "rcp" ) # "pfabric" )
+    declare -a SCHEMES=("sperc" ) #"pfabric" "sperc" "rcp" ) # "pfabric" )
     declare -a CDFS=("search" ) #"learning" )
     declare -a LOADS=( 0.6 ) #0.2 ) # 0.8) #  0.6) #=(0.3 0.4 0.6) 
     i=0;
@@ -160,7 +160,10 @@ function setup_for_fct {
 	for LOAD in "${LOADS[@]}" ; do
 	    for SCHEME in "${SCHEMES[@]}" ; do
 		if [ "${SCHEME}" == "sperc" ] ; then 
-		    CONFIG="SCHEME=${SCHEME};TOPOLOGY_TYPE=spine-leaf;NUM_SERVERS=144;LOAD=$LOAD;CDF=$CDF;KW=\"wt1-pri2-match-ign\""
+		    # s-perc (basic)
+		    # CONFIG="SCHEME=${SCHEME};TOPOLOGY_TYPE=spine-leaf;NUM_SERVERS=144;LOAD=$LOAD;CDF=$CDF;KW=\"wt1-pri0-match-ign\""
+		    # s-perc (short)
+		    CONFIG="SCHEME=${SCHEME};TOPOLOGY_TYPE=spine-leaf;NUM_SERVERS=144;LOAD=$LOAD;CDF=$CDF;KW=\"wt1-pri2-match-start100-short-ign\""
 		elif [ "${SCHEME}" == "rcp" ] ; then 
 		    CONFIG="SCHEME=${SCHEME};TOPOLOGY_TYPE=spine-leaf;NUM_SERVERS=144;LOAD=$LOAD;CDF=$CDF;KW=\"a0.4b0.2\""
 		elif [ "${SCHEME}" == "pfabric" ] ; then 
