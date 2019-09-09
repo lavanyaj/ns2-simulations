@@ -268,8 +268,7 @@ int SPERCAgent::get_prio() {
 }
 
 double SPERCAgent::get_weight() {
-  // re-purpose WEIGHTED_MAX_MIN_NUM_CLASSES_ = number of priorities
-  // PRIO_WORKLOAD_ = which workload (learning 1 or search 2)
+  // when num_weights is 1, we use the same weight (1) for all flows
   double num_weights = SPERC_WEIGHTED_MAX_MIN_NUM_CLASSES_;
   bool learning_workload = (SPERC_PRIO_WORKLOAD_ == 1);
   double weight = 1;
@@ -282,7 +281,6 @@ double SPERCAgent::get_weight() {
 	    num_weights, SPERC_PRIO_WORKLOAD_);
     exit(1);
   }
-
   double learning_thresh[] = {89881, 534582, 780926}; // kilobytes 25thpc, 50thpc, 75thpc (by bytes)
   double search_thresh[] = {3809, 7712, 17451, 29196}; // kilobytes 25thpc, 50thpc, 75thpc (by bytes)
   double num_kbytes = (numpkts_*size_)/1000;
