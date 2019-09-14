@@ -11,17 +11,11 @@ for ENV_VAR_STR in "${ENV_VARS_STR[@]}" ; do
     fi
 done;
 
-if [ $# -lt 6 ] ; then
-    echo "$0: Not enough parameters. Expected 5 (flows_input suffix max_sim_time num_servers b4|spine-leaf link_rate), got $#." 1>&2;
+if [ $# -lt 8 ] ; then
+    echo "$0: Not enough parameters. Expected 5 (flows_input suffix max_sim_time num_servers b4|spine-leaf link_rate keyword log_queues), got $#." 1>&2;
     exit 1;
 else
-    echo "$0: Got parameters. flows_input $1 suffix $2 max_sim_time $3 num_servers $4 topology_type $5 link_rate $6." 
-    if [ $# -eq 7 ] ; then
-	echo "$0: Got parameters. keyword $7."
-	if [ $# -eq 8 ] ; then
-	    echo "$0: Got parameters. log_queues $8."
-	fi
-	fi;
+    echo "$0: Got parameters. flows_input $1 suffix $2 max_sim_time $3 num_servers $4 topology_type $5 link_rate $6 keyword $7 log_queues $8." 
 fi;
 
 DS=$PWD
@@ -32,11 +26,7 @@ CDF=0;MEAN_FLOW_SIZE=0; FLOW_SIZE_DISTRIBUTION="custom"; PARETO_SHAPE=0; LOG_QUE
 LOG_AGENTS="mon3-a.tcl";TRACE_QUEUES=0;LINK_RATE=100;TOPOLOGY_X=1;QUEUE_SAMPLING_INTVAL=0.001; PKTSIZE=1500;
 REQUESTED_TOPOLOGY_TYPE=${5}
 REQUESTED_LINK_RATE=${6};
-
-REQUESTED_KW=""
-if [ $# -ge 7 ] ; then
-    REQUESTED_KW=$7
-fi
+REQUESTED_KW=$7
 
 # queue stuff that we don't use or change
 # QUEUE_THRESHOLD=${29}
@@ -58,9 +48,7 @@ else
     exit
 fi;
 
-if [ $# -ge 8 ] ; then
-    LOG_QUEUES=$8
-fi
+LOG_QUEUES=$8
 
     declare -a versions=(
 # This is a version for running in WAN, see that maxsat_timeout is 100ms, max_rtt_timeout is 500ms, no priority

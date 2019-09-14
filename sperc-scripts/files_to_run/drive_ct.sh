@@ -64,7 +64,7 @@ fi;
 
 PREFIX="scheme=sperc-run_date=${DATE}"
 INPUT_GENERATE_CT_FLOWS="num_servers=${NUM_SERVERS}-flows_per_server=${FLOWS_PER_SERVER}-epoch=${EPOCH}-frac_replace=${FRAC_REPLACE}-seed1=${SEED1}-seed2=${SEED2}"
-INPUT_DRIVE_SPERC_CT="topology_type=${TOPOLOGY_TYPE}-link_rate=${LINK_RATE}"
+INPUT_DRIVE_SPERC_CT="topology_type=${TOPOLOGY_TYPE}-link_rate=${LINK_RATE}-kw=${KW}"
 UNIQUE_ID="${PREFIX}-${INPUT_GENERATE_CT_FLOWS}-${INPUT_DRIVE_SPERC_CT}"
 
 ANALYZE_DIR="${PERC_ANALYZE_SCRIPTS}"
