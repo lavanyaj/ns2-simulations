@@ -10,11 +10,14 @@ Install jupyter notebook to plot the results (you do not need anaconda).
 
 ## Running experiments
 
-Change to common-scripts directory. Then use run_experiment.sh to run one of the two kinds of NS-2 experiments from the paper:
-    - ct : convergence times (CT) in Datacenter Fabrics and Wide-Area Networks
-    - fct: flow completion times (FCT) in Datacenter Fabrics
+Change to common-scripts directory. 
+
+Then use run_experiment.sh to run one of the two kinds of NS-2 experiments from the paper:
+- ct : convergence times (CT) in Datacenter Fabrics and Wide-Area Networks
+- fct: flow completion times (FCT) in Datacenter Fabrics
 
 For the FCT experiments, you can adjust which schemes, workload and load you want to run in the setup_for_fct function in run_experiment.sh.
+
 For the CT experiments, you can adjust which scheme, network and churn you want to try by including the relevant config in the CONFIGS array
 in the setup_for_ct function in run_experiment.sh. 
 
